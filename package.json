@@ -1,0 +1,100 @@
+{
+    "name": "acidsnip",
+    "displayName": "AcidSnip",
+    "description": "Manage and execute custom terminal commands from a sidebar.",
+    "version": "0.0.1",
+    "publisher": "antigravity",
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [],
+    "main": "./out/extension.js",
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "fast-snippet-explorer",
+                    "title": "AcidSnip",
+                    "icon": "$(terminal)"
+                }
+            ]
+        },
+        "views": {
+            "fast-snippet-explorer": [
+                {
+                    "id": "fastSnippetExplorer",
+                    "name": "Snippet Explorer",
+                    "type": "webview"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "fastSnippetTerminal.addSnippet",
+                "title": "Add Snippet",
+                "icon": "$(add)"
+            },
+            {
+                "command": "fastSnippetTerminal.addTab",
+                "title": "Add Tab",
+                "icon": "$(new-folder)"
+            },
+            {
+                "command": "fastSnippetTerminal.addSeparator",
+                "title": "Add Separator",
+                "icon": "$(dash)"
+            },
+            {
+                "command": "fastSnippetTerminal.executeSnippet",
+                "title": "Execute Snippet"
+            },
+            {
+                "command": "fastSnippetTerminal.editItem",
+                "title": "Edit",
+                "icon": "$(edit)"
+            },
+            {
+                "command": "fastSnippetTerminal.changeColor",
+                "title": "Change Color",
+                "icon": "$(paintcan)"
+            },
+            {
+                "command": "fastSnippetTerminal.deleteItem",
+                "title": "Delete",
+                "icon": "$(trash)"
+            },
+            {
+                "command": "fastSnippetTerminal.cdHere",
+                "title": "AcidSnip: CD to this folder",
+                "icon": "$(folder)"
+            }
+        ],
+        "menus": {
+            "explorer/context": [
+                {
+                    "command": "fastSnippetTerminal.cdHere",
+                    "group": "navigation"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.75.0",
+        "@types/node": "16.x",
+        "typescript": "^4.9.4",
+        "eslint": "^8.31.0",
+        "@typescript-eslint/eslint-plugin": "^5.47.1",
+        "@typescript-eslint/parser": "^5.47.1"
+    }
+}
