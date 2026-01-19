@@ -1,19 +1,23 @@
 # AcidSnip
 
-**AcidSnip** is a powerful extension for VS Code designed to boost your productivity. It allows you to store, organize, and execute your recurring terminal commands through a modern and customizable interface.
+**AcidSnip** is a powerful extension for VS Code designed to boost your productivity. It allows you to store, organize, and execute your recurring terminal commands through a modern, customizable, and highly interactive interface.
 
 ## 🚀 Advanced Features
 
-*   **Modern Webview Interface**: A fluid and responsive UI with horizontal tabs and a smart layout.
-*   **Hierarchical Organization**: Organize your snippets into **Tabs** and **Folders** for maximum clarity.
-*   **Full Drag & Drop**: Effortlessly reorganize snippets, folders, and tabs by dragging them.
-*   **Smart Snippets**: Use arguments in your commands like `{{arg$1:label}}`. AcidSnip will prompt you for values before execution.
-*   **Intelligent Search**: Quickly find any snippet, folder, or tab using the integrated search bar (🔍).
-*   **Color Customization**: Personalize tabs, folders, snippets, and separators with a built-in color picker.
-*   **Integrated Emoji Picker**: Add style to your items with a searchable emoji selector.
-*   **External Configuration**: Save your data to an external JSON file (e.g., in OneDrive or Git) for easy synchronization across machines.
-*   **Responsive Design**: The toolbar automatically switches to a horizontal bottom bar when vertical space is limited.
-*   **Quick CD**: Right-click any file or folder in the VS Code explorer to instantly `cd` into it in the terminal.
+*   **Modern Webview UI**: A fluid and responsive interface with horizontal tabs and a dynamic sidebar.
+*   **Smart Snippets**: Create snippets with dynamic arguments using `{{arg$1:label}}` syntax. It prompts you for values before execution!
+*   **Intelligent Search**: Quickly find any snippet, folder, or tab across your entire collection with real-time highlighting.
+*   **Folder Support**: Organize your snippets into nested folders. Delete folders while keeping their contents if needed.
+*   **Drag & Drop Everything**: Reorganize snippets, folders, and tabs with a simple drag and drop interface.
+*   **External Config Storage**: Store your snippets and settings in an external JSON file for easy portability, backup, and sharing.
+*   **Responsive Sidebar**: The toolbar automatically switches from a vertical sidebar to a horizontal bottom bar when vertical space is limited.
+*   **Dynamic Version Checker**: Automatically detects the local version of your project (package.json, Cargo.toml, etc.) and compares it with the latest GitHub release.
+*   **HTML Color Picker**: Fully customize the look of your tabs, folders, and snippets with a built-in color picker.
+*   **Emoji Picker**: Integrated emoji selector with search to give style and personality to your commands.
+*   **Quick Actions**:
+    *   **Reload Extensions**: A dedicated button to quickly reload all VS Code extensions.
+    *   **CD to Explorer Selection**: Instantly change your terminal directory to the folder or file selected in the VS Code explorer.
+*   **Safety First**: Optional "Confirm before delete" setting to prevent accidental data loss.
 
 ## 🛠️ Installation
 
@@ -25,18 +29,18 @@
 
 1.  **Open AcidSnip**: Click the terminal icon in the Activity Bar.
 2.  **Add Elements**: Use the sidebar buttons to add a Snippet, Smart Snippet, Folder, Tab, or Separator.
-3.  **Search**: Click the 🔍 icon or press the search button to filter your items.
-4.  **Settings**: Click the ⚙️ icon to configure:
-    *   **External Config File**: Choose where to store your data.
-    *   **Confirm Delete**: Enable/disable confirmation prompts.
-    *   **Reload Button**: Show/hide the extension reload button.
-5.  **Execute**: Simply click a snippet to run its command in the active terminal.
+3.  **Search**: Click the 🔍 icon or use the search bar to find your commands instantly.
+4.  **Customize**: Right-click any element to change its color, edit its properties, or delete it.
+5.  **Organize**: Drag snippets onto tabs to move them, or drag them within the list to reorder.
+6.  **Execute**: Simply click a snippet to run its command in the terminal. If it's a Smart Snippet, fill in the requested arguments first.
+7.  **Settings**: Click the ⚙️ icon to manage your configuration file, export/import data, and toggle advanced UI features.
 
 ## ⚙️ Technical Specifications
 
-*   **Engine**: Built with `WebviewViewProvider` for a premium, custom UI.
-*   **Storage**: Supports both `globalState` and external JSON file persistence.
-*   **Theming**: Fully compatible with VS Code themes using CSS variables.
+*   **Engine**: Built with `WebviewViewProvider` for a premium, custom UI experience.
+*   **Storage**: Primary storage in external JSON files with `globalState` fallback.
+*   **Design**: Fully theme-aware, using VS Code CSS variables to match your favorite theme perfectly.
+*   **Responsive**: Adaptive layout for small sidebars or narrow windows.
 
 ---
 

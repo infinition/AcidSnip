@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as https from 'https';
 
 interface TreeItemData {
     id: string;
@@ -15,6 +16,7 @@ interface Settings {
     showReloadButton: boolean;
     configFilePath: string;
     confirmDelete: boolean;
+    showVersionChecker: boolean;
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -107,7 +109,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                         try {
                             const content = await vscode.workspace.fs.readFile(importUri[0]);
                             const configData = JSON.parse(Buffer.from(content).toString('utf8'));
-                            const defaultSettings: Settings = { showReloadButton: false, configFilePath: '', confirmDelete: false };
+                            const defaultSettings: Settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false };
                             const items = configData.items || [];
                             const settings = { ...defaultSettings, ...configData.settings };
                             await this.writeConfigToFile(items, settings);
@@ -149,6 +151,10 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                 case 'ready':
                     await this.sendItems();
                     await this.sendSettings();
+                    break;
+                case 'checkVersion':
+                    const versionInfo = await this.getVersionInfo();
+                    this.sendMessage({ type: 'versionInfo', ...versionInfo });
                     break;
             }
         });
@@ -241,7 +247,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
     }
 
     private async getStoredSettings(): Promise<Settings> {
-        const defaultSettings: Settings = { showReloadButton: false, configFilePath: '', confirmDelete: false };
+        const defaultSettings: Settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false };
         const config = await this.readConfigFromFile();
         // Get configFilePath from globalState (not from file)
         const configFilePath = this.getConfigFilePath();
@@ -258,6 +264,187 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             const settings = await this.getStoredSettings();
             this._view.webview.postMessage({ type: 'loadSettings', settings });
         }
+    }
+
+    private async getVersionInfo(): Promise<{ localVersion: string | null, remoteVersion: string | null, repoUrl: string | null, projectName: string | null, error: string | null }> {
+        const targetPath = await this.getTargetPath();
+        if (!targetPath) {
+            return { localVersion: null, remoteVersion: null, repoUrl: null, projectName: null, error: 'No folder or file selected' };
+        }
+
+        // Determine the directory to look in
+        let rootPath = targetPath;
+        try {
+            const stats = await vscode.workspace.fs.stat(vscode.Uri.file(targetPath));
+            if ((stats.type & vscode.FileType.Directory) === 0) {
+                const path = require('path');
+                rootPath = path.dirname(targetPath);
+            }
+        } catch (e) {
+            // ignore
+        }
+        let localVersion: string | null = null;
+        let repoUrl: string | null = null;
+        let projectName: string | null = null;
+
+        // Version file patterns to check (in priority order)
+        const versionFiles = [
+            { file: 'package.json', versionKey: 'version', repoKey: 'repository', nameKey: 'name' },
+            { file: 'manifest.json', versionKey: 'version', nameKey: 'name' },
+            { file: 'Cargo.toml', pattern: /^version\s*=\s*"([^"]+)"/m, namePattern: /^name\s*=\s*"([^"]+)"/m },
+            { file: 'pyproject.toml', pattern: /^version\s*=\s*"([^"]+)"/m, namePattern: /^name\s*=\s*"([^"]+)"/m },
+            { file: 'setup.py', pattern: /version\s*=\s*['"]([^'"]+)['"]/, namePattern: /name\s*=\s*['"]([^'"]+)['"]/ },
+            { file: 'version.txt', raw: true },
+            { file: 'VERSION', raw: true }
+        ];
+
+        // Try to find local version
+        for (const vf of versionFiles) {
+            try {
+                const filePath = vscode.Uri.file(rootPath + '/' + vf.file);
+                const content = await vscode.workspace.fs.readFile(filePath);
+                const text = Buffer.from(content).toString('utf8');
+
+                if (vf.raw) {
+                    localVersion = text.trim().split('\\n')[0].trim();
+                    break;
+                }
+
+                if (vf.versionKey) {
+                    const json = JSON.parse(text);
+                    localVersion = json[vf.versionKey] || null;
+                    projectName = json[vf.nameKey] || projectName;
+
+                    // Extract repo URL from package.json
+                    if (vf.repoKey && json[vf.repoKey]) {
+                        const repo = json[vf.repoKey];
+                        if (typeof repo === 'string') {
+                            repoUrl = repo;
+                        } else if (repo.url) {
+                            repoUrl = repo.url;
+                        }
+                    }
+                    if (localVersion) break;
+                }
+
+                if (vf.pattern) {
+                    const match = text.match(vf.pattern);
+                    if (match) localVersion = match[1];
+                    if (vf.namePattern) {
+                        const nameMatch = text.match(vf.namePattern);
+                        if (nameMatch) projectName = nameMatch[1];
+                    }
+                    if (localVersion) break;
+                }
+            } catch (e) {
+                // File not found, continue
+            }
+        }
+
+        // Try to get repo URL from .git/config
+        if (!repoUrl) {
+            try {
+                const gitConfigPath = vscode.Uri.file(rootPath + '/.git/config');
+                const gitConfig = await vscode.workspace.fs.readFile(gitConfigPath);
+                const gitText = Buffer.from(gitConfig).toString('utf8');
+                const urlMatch = gitText.match(/url\s*=\s*(.+github\.com[:/]([^/]+)\/([^/\s.]+))/i);
+                if (urlMatch) {
+                    const owner = urlMatch[2];
+                    const repo = urlMatch[3].replace(/\.git$/, '');
+                    repoUrl = 'https://github.com/' + owner + '/' + repo;
+                }
+            } catch (e) {
+                // No .git/config
+            }
+        }
+
+        // Clean up repo URL
+        if (repoUrl) {
+            repoUrl = repoUrl.replace(/^git\+/, '').replace(/\.git$/, '');
+            if (repoUrl.includes('git@github.com:')) {
+                repoUrl = repoUrl.replace('git@github.com:', 'https://github.com/');
+            }
+        }
+
+        // Helper function to make HTTPS requests
+        const httpGet = (url: string): Promise<string | null> => {
+            return new Promise((resolve) => {
+                const req = https.get(url, { headers: { 'User-Agent': 'AcidSnip-VSCode' } }, (res) => {
+                    // Handle redirects
+                    if (res.statusCode === 301 || res.statusCode === 302) {
+                        if (res.headers.location) {
+                            httpGet(res.headers.location).then(resolve);
+                            return;
+                        }
+                    }
+                    if (res.statusCode !== 200) {
+                        resolve(null);
+                        return;
+                    }
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => resolve(data));
+                });
+                req.on('error', () => resolve(null));
+                req.setTimeout(5000, () => { req.destroy(); resolve(null); });
+            });
+        };
+
+        // Try to get remote version from GitHub
+        let remoteVersion: string | null = null;
+        if (repoUrl && repoUrl.includes('github.com')) {
+            const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+            if (match) {
+                const owner = match[1];
+                const repo = match[2];
+
+                // Try GitHub releases API first
+                try {
+                    const data = await httpGet('https://api.github.com/repos/' + owner + '/' + repo + '/releases/latest');
+                    if (data) {
+                        const release = JSON.parse(data) as { tag_name: string };
+                        remoteVersion = release.tag_name?.replace(/^v/, '') || null;
+                    }
+                } catch (e) {
+                    // Releases failed
+                }
+
+                // Fallback: try to get package.json from repo
+                if (!remoteVersion) {
+                    try {
+                        const data = await httpGet('https://raw.githubusercontent.com/' + owner + '/' + repo + '/main/package.json');
+                        if (data) {
+                            const pkg = JSON.parse(data) as { version: string };
+                            remoteVersion = pkg.version || null;
+                        }
+                    } catch (e) {
+                        // Fallback failed
+                    }
+                }
+
+                // Fallback: try master branch
+                if (!remoteVersion) {
+                    try {
+                        const data = await httpGet('https://raw.githubusercontent.com/' + owner + '/' + repo + '/master/package.json');
+                        if (data) {
+                            const pkg = JSON.parse(data) as { version: string };
+                            remoteVersion = pkg.version || null;
+                        }
+                    } catch (e) {
+                        // Fallback failed
+                    }
+                }
+            }
+        }
+
+        const path = require('path');
+        return {
+            localVersion,
+            remoteVersion,
+            repoUrl,
+            projectName: projectName || path.basename(rootPath) || 'Unknown Project',
+            error: null
+        };
     }
 
     private async executeCommand(cmd: string) {
@@ -299,6 +486,36 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
     }
 
     public async cdToUri(uri?: vscode.Uri) {
+        const targetPath = await this.getTargetPath(uri);
+
+        if (targetPath) {
+            try {
+                const stats = await vscode.workspace.fs.stat(vscode.Uri.file(targetPath));
+                const isDirectory = (stats.type & vscode.FileType.Directory) !== 0;
+                const path = require('path');
+                const dirPath = isDirectory ? targetPath : path.dirname(targetPath);
+                const dirName = path.basename(dirPath) || 'AcidSnip';
+
+                let terminal = vscode.window.terminals.find(t => t.name === dirName);
+                if (!terminal) {
+                    terminal = vscode.window.createTerminal(dirName);
+                }
+                terminal.show();
+
+                const isWindows = process.platform === 'win32';
+                const cdCmd = isWindows ? `cd /d "${dirPath}"` : `cd "${dirPath}"`;
+                const clearCmd = isWindows ? 'cls' : 'clear';
+
+                terminal.sendText(`${cdCmd} && ${clearCmd}`);
+            } catch (e) {
+                vscode.window.showErrorMessage('Could not determine directory path.');
+            }
+        } else {
+            vscode.window.showWarningMessage('No file or folder selected.');
+        }
+    }
+
+    private async getTargetPath(uri?: vscode.Uri): Promise<string | undefined> {
         let targetPath: string | undefined;
 
         if (uri) {
@@ -330,31 +547,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             targetPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
         }
 
-        if (targetPath) {
-            try {
-                const stats = await vscode.workspace.fs.stat(vscode.Uri.file(targetPath));
-                const isDirectory = (stats.type & vscode.FileType.Directory) !== 0;
-                const path = require('path');
-                const dirPath = isDirectory ? targetPath : path.dirname(targetPath);
-                const dirName = path.basename(dirPath) || 'AcidSnip';
-
-                let terminal = vscode.window.terminals.find(t => t.name === dirName);
-                if (!terminal) {
-                    terminal = vscode.window.createTerminal(dirName);
-                }
-                terminal.show();
-
-                const isWindows = process.platform === 'win32';
-                const cdCmd = isWindows ? `cd /d "${dirPath}"` : `cd "${dirPath}"`;
-                const clearCmd = isWindows ? 'cls' : 'clear';
-
-                terminal.sendText(`${cdCmd} && ${clearCmd}`);
-            } catch (e) {
-                vscode.window.showErrorMessage('Could not determine directory path.');
-            }
-        } else {
-            vscode.window.showWarningMessage('No file or folder selected.');
-        }
+        return targetPath;
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
@@ -484,6 +677,10 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .search-result:hover { background: var(--vscode-list-hoverBackground); }
         .search-result-path { font-size: 10px; opacity: 0.6; margin-left: auto; }
         .search-highlight { background: var(--vscode-editor-findMatchHighlightBackground); border-radius: 2px; padding: 0 2px; }
+        .version-box { padding: 15px 20px; background: var(--vscode-input-background); border-radius: 8px; cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
+        .version-box:hover { border-color: var(--vscode-focusBorder); transform: scale(1.05); }
+        .version-box.outdated { border-color: #f97316; }
+        .version-box.current { border-color: #22c55e; }
     </style>
 </head>
 <body>
@@ -504,6 +701,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         <div class="side-spacer"></div>
         <button class="side-btn" onclick="cdToActiveFile()" title="CD to Explorer Selection">📂</button>
         <button class="side-btn" id="reload-btn" onclick="reloadExtensions()" title="Reload Extensions" style="display: none;">🔄</button>
+        <button class="side-btn" id="version-btn" onclick="checkVersion()" title="Check Version" style="display: none;">📦</button>
         <button class="side-btn" onclick="openSettings()" title="Settings">⚙️</button>
     </div>
     <div class="modal-overlay" id="modal-overlay">
@@ -529,6 +727,10 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                     <span>Confirm before delete</span>
                     <div class="toggle-switch" id="toggle-confirm-delete" onclick="toggleConfirmDelete()"></div>
                 </div>
+                <div class="toggle-row">
+                    <span>Show Version Checker</span>
+                    <div class="toggle-switch" id="toggle-version-checker" onclick="toggleVersionChecker()"></div>
+                </div>
             </div>
             <div class="settings-section">
                 <h4>Configuration</h4>
@@ -539,6 +741,31 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             </div>
             <div class="modal-buttons" style="margin-top: 15px;">
                 <button class="modal-btn" onclick="closeSettings()">Close</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="version-overlay">
+        <div class="modal" style="max-width: 350px; text-align: center;">
+            <h3>📦 Version Info</h3>
+            <div id="version-loading" style="padding: 20px;">Loading...</div>
+            <div id="version-content" style="display: none;">
+                <div id="version-project" style="font-weight: bold; font-size: 16px; margin-bottom: 15px;"></div>
+                <div style="display: flex; justify-content: space-around; gap: 15px;">
+                    <div class="version-box" onclick="copyVersion('local')" title="Click to copy">
+                        <div style="font-size: 11px; opacity: 0.7;">LOCAL</div>
+                        <div id="version-local" style="font-size: 18px; font-weight: bold; cursor: pointer;">-</div>
+                    </div>
+                    <div style="display: flex; align-items: center; font-size: 24px;" id="version-status">⟷</div>
+                    <div class="version-box" onclick="copyVersion('remote')" title="Click to copy">
+                        <div style="font-size: 11px; opacity: 0.7;">REMOTE</div>
+                        <div id="version-remote" style="font-size: 18px; font-weight: bold; cursor: pointer;">-</div>
+                    </div>
+                </div>
+                <div id="version-repo" style="margin-top: 15px; font-size: 11px; opacity: 0.7; word-break: break-all;"></div>
+            </div>
+            <div class="modal-buttons" style="margin-top: 15px; justify-content: center;">
+                <button class="modal-btn secondary" onclick="closeVersionModal()">Close</button>
+                <button class="modal-btn" onclick="checkVersion()">🔄 Refresh</button>
             </div>
         </div>
     </div>
@@ -585,7 +812,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         let colorPickerItemId = null;
         let confirmCallback = null;
         let searchMode = false;
-        let settings = { showReloadButton: false, configFilePath: '', confirmDelete: false };
+        let settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false };
 
         // Helper function to check if parentId is "root" (null or undefined)
         function isRootItem(item) {
@@ -617,8 +844,11 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                     render();
                     break;
                 case 'loadSettings':
-                    settings = message.settings || { showReloadButton: false, configFilePath: '', confirmDelete: false };
+                    settings = message.settings || { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false };
                     updateSettingsUI();
+                    break;
+                case 'versionInfo':
+                    displayVersionInfo(message);
                     break;
                 case 'triggerAddSnippet': addSnippet(); break;
                 case 'triggerAddTab': addTab(); break;
@@ -628,14 +858,19 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
 
         function updateSettingsUI() {
             const reloadBtn = document.getElementById('reload-btn');
+            const versionBtn = document.getElementById('version-btn');
             const toggleReload = document.getElementById('toggle-reload');
             const toggleConfirmDelete = document.getElementById('toggle-confirm-delete');
+            const toggleVersionChecker = document.getElementById('toggle-version-checker');
             const pathDisplay = document.getElementById('config-path-display');
             
             if (reloadBtn) reloadBtn.style.display = settings.showReloadButton ? 'flex' : 'none';
+            if (versionBtn) versionBtn.style.display = settings.showVersionChecker ? 'flex' : 'none';
             if (toggleReload) toggleReload.classList.toggle('active', settings.showReloadButton);
             if (toggleConfirmDelete) toggleConfirmDelete.classList.toggle('active', settings.confirmDelete);
+            if (toggleVersionChecker) toggleVersionChecker.classList.toggle('active', settings.showVersionChecker);
             if (pathDisplay) pathDisplay.textContent = settings.configFilePath || 'No config file selected';
+            checkToolbarLayout();
         }
 
         function save() { vscode.postMessage({ type: 'saveItems', items }); }
@@ -1037,6 +1272,83 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         function toggleConfirmDelete() {
             settings.confirmDelete = !settings.confirmDelete;
             vscode.postMessage({ type: 'saveSettings', settings });
+        }
+
+        function toggleVersionChecker() {
+            settings.showVersionChecker = !settings.showVersionChecker;
+            vscode.postMessage({ type: 'saveSettings', settings });
+        }
+
+        let versionData = { localVersion: null, remoteVersion: null, repoUrl: null, projectName: null };
+
+        function checkVersion() {
+            document.getElementById('version-overlay').style.display = 'flex';
+            document.getElementById('version-loading').style.display = 'block';
+            document.getElementById('version-content').style.display = 'none';
+            vscode.postMessage({ type: 'checkVersion' });
+        }
+
+        function displayVersionInfo(data) {
+            versionData = data;
+            document.getElementById('version-loading').style.display = 'none';
+            document.getElementById('version-content').style.display = 'block';
+            
+            document.getElementById('version-project').textContent = data.projectName || 'Unknown Project';
+            document.getElementById('version-local').textContent = data.localVersion || 'N/A';
+            document.getElementById('version-remote').textContent = data.remoteVersion || 'N/A';
+            document.getElementById('version-repo').textContent = data.repoUrl || 'No GitHub repository detected';
+            
+            // Compare versions and show status
+            const statusEl = document.getElementById('version-status');
+            const localBoxes = document.querySelectorAll('.version-box');
+            localBoxes.forEach(b => b.classList.remove('outdated', 'current'));
+            
+            if (data.localVersion && data.remoteVersion) {
+                const comparison = compareVersions(data.localVersion, data.remoteVersion);
+                if (comparison < 0) {
+                    statusEl.textContent = '⬆️';
+                    statusEl.title = 'Update available';
+                    localBoxes[0].classList.add('outdated');
+                } else if (comparison > 0) {
+                    statusEl.textContent = '⬇️';
+                    statusEl.title = 'Local is ahead';
+                    localBoxes[0].classList.add('current');
+                } else {
+                    statusEl.textContent = '✅';
+                    statusEl.title = 'Up to date';
+                    localBoxes[0].classList.add('current');
+                }
+            } else {
+                statusEl.textContent = '⟷';
+                statusEl.title = 'Cannot compare';
+            }
+        }
+
+        function compareVersions(v1, v2) {
+            const parts1 = v1.replace(/^v/, '').split('.').map(n => parseInt(n) || 0);
+            const parts2 = v2.replace(/^v/, '').split('.').map(n => parseInt(n) || 0);
+            for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+                const p1 = parts1[i] || 0;
+                const p2 = parts2[i] || 0;
+                if (p1 < p2) return -1;
+                if (p1 > p2) return 1;
+            }
+            return 0;
+        }
+
+        function copyVersion(type) {
+            const version = type === 'local' ? versionData.localVersion : versionData.remoteVersion;
+            if (version) {
+                navigator.clipboard.writeText(version);
+                const el = document.getElementById('version-' + type);
+                const original = el.textContent;
+                el.textContent = '✓ Copied!';
+                setTimeout(() => { el.textContent = original; }, 1000);
+            }
+        }
+
+        function closeVersionModal() {
+            document.getElementById('version-overlay').style.display = 'none';
         }
 
         function exportConfig() { vscode.postMessage({ type: 'exportConfig' }); }
