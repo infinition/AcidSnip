@@ -14,9 +14,11 @@
 *   **Dynamic Version Checker**: Automatically detects the local version of your project (package.json, Cargo.toml, etc.) and compares it with the latest GitHub release.
 *   **HTML Color Picker**: Fully customize the look of your tabs, folders, and snippets with a built-in color picker.
 *   **Emoji Picker**: Integrated emoji selector with search to give style and personality to your commands.
+*   **GitHub Repo Downloader**: Browse and clone public repositories from any GitHub user directly into your workspace with a single click.
 *   **Quick Actions**:
     *   **Reload Extensions**: A dedicated button to quickly reload all VS Code extensions.
     *   **CD to Explorer Selection**: Instantly change your terminal directory to the folder or file selected in the VS Code explorer.
+    *   **GitHub Integration**: Set a default username to quickly access your favorite repositories.
 *   **Safety First**: Optional "Confirm before delete" setting to prevent accidental data loss.
 
 ## 🛠️ Installation
@@ -33,7 +35,8 @@
 4.  **Customize**: Right-click any element to change its color, edit its properties, or delete it.
 5.  **Organize**: Drag snippets onto tabs to move them, or drag them within the list to reorder.
 6.  **Execute**: Simply click a snippet to run its command in the terminal. If it's a Smart Snippet, fill in the requested arguments first.
-7.  **Settings**: Click the ⚙️ icon to manage your configuration file, export/import data, and toggle advanced UI features.
+7.  **GitHub Downloader**: Click the 🐙 icon to browse and clone repositories from any GitHub user.
+8.  **Settings**: Click the ⚙️ icon to manage your configuration file, export/import data, and toggle advanced UI features like the GitHub button or Reload button.
 
 ## ⚙️ Technical Specifications
 

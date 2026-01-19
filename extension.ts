@@ -17,6 +17,8 @@ interface Settings {
     configFilePath: string;
     confirmDelete: boolean;
     showVersionChecker: boolean;
+    githubUsername?: string;
+    showGithubButton: boolean;
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -109,7 +111,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                         try {
                             const content = await vscode.workspace.fs.readFile(importUri[0]);
                             const configData = JSON.parse(Buffer.from(content).toString('utf8'));
-                            const defaultSettings: Settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false };
+                            const defaultSettings: Settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, githubUsername: '', showGithubButton: true };
                             const items = configData.items || [];
                             const settings = { ...defaultSettings, ...configData.settings };
                             await this.writeConfigToFile(items, settings);
@@ -147,6 +149,12 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'getSettings':
                     await this.sendSettings();
+                    break;
+                case 'fetchGithubRepos':
+                    this.fetchGithubRepos(data.username);
+                    break;
+                case 'cloneRepo':
+                    this.cloneRepo(data.cloneUrl, data.name);
                     break;
                 case 'ready':
                     await this.sendItems();
@@ -247,7 +255,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
     }
 
     private async getStoredSettings(): Promise<Settings> {
-        const defaultSettings: Settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false };
+        const defaultSettings: Settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, githubUsername: '', showGithubButton: true };
         const config = await this.readConfigFromFile();
         // Get configFilePath from globalState (not from file)
         const configFilePath = this.getConfigFilePath();
@@ -550,6 +558,75 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         return targetPath;
     }
 
+    private async fetchGithubRepos(username: string) {
+        const options = {
+            hostname: 'api.github.com',
+            path: `/users/${username}/repos?sort=created&direction=desc`,
+            headers: {
+                'User-Agent': 'AcidSnip-VSCode-Extension'
+            }
+        };
+
+        https.get(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => {
+                try {
+                    const repos = JSON.parse(data);
+                    if (Array.isArray(repos)) {
+                        this.sendMessage({
+                            type: 'githubReposResponse', repos: repos.map((r: any) => ({
+                                name: r.name,
+                                description: r.description,
+                                cloneUrl: r.clone_url,
+                                stars: r.stargazers_count,
+                                language: r.language,
+                                updatedAt: r.updated_at
+                            }))
+                        });
+                    } else {
+                        this.sendMessage({ type: 'githubReposError', message: repos.message || 'User not found' });
+                    }
+                } catch (e) {
+                    this.sendMessage({ type: 'githubReposError', message: 'Failed to parse GitHub response' });
+                }
+            });
+        }).on('error', (e) => {
+            this.sendMessage({ type: 'githubReposError', message: e.message });
+        });
+    }
+
+    private async cloneRepo(cloneUrl: string, name: string) {
+        const targetPath = await this.getTargetPath();
+        if (!targetPath) {
+            vscode.window.showWarningMessage('Please select a folder in the explorer first.');
+            return;
+        }
+
+        try {
+            const stats = await vscode.workspace.fs.stat(vscode.Uri.file(targetPath));
+            const isDirectory = (stats.type & vscode.FileType.Directory) !== 0;
+            const path = require('path');
+            const dirPath = isDirectory ? targetPath : path.dirname(targetPath);
+            const dirName = path.basename(dirPath) || 'AcidSnip';
+
+            let terminal = vscode.window.terminals.find(t => t.name === dirName);
+            if (!terminal) {
+                terminal = vscode.window.createTerminal(dirName);
+            }
+            terminal.show();
+
+            const isWindows = process.platform === 'win32';
+            const cdCmd = isWindows ? `cd /d "${dirPath}"` : `cd "${dirPath}"`;
+            const cloneCmd = `git clone ${cloneUrl}`;
+
+            terminal.sendText(`${cdCmd} && ${cloneCmd}`);
+            vscode.window.showInformationMessage(`Cloning ${name} into ${dirPath}...`);
+        } catch (e) {
+            vscode.window.showErrorMessage('Could not determine directory path.');
+        }
+    }
+
     private _getHtmlForWebview(webview: vscode.Webview) {
         return `<!DOCTYPE html>
 <html lang="en">
@@ -681,6 +758,13 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .version-box:hover { border-color: var(--vscode-focusBorder); transform: scale(1.05); }
         .version-box.outdated { border-color: #f97316; }
         .version-box.current { border-color: #22c55e; }
+        .repo-list { max-height: 300px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--vscode-widget-border); border-radius: 4px; }
+        .repo-item { padding: 8px 12px; border-bottom: 1px solid var(--vscode-widget-border); cursor: pointer; transition: background 0.2s; }
+        .repo-item:last-child { border-bottom: none; }
+        .repo-item:hover { background: var(--vscode-list-hoverBackground); }
+        .repo-name { font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 5px; }
+        .repo-desc { font-size: 11px; opacity: 0.7; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .repo-meta { font-size: 10px; opacity: 0.5; margin-top: 4px; display: flex; gap: 10px; }
     </style>
 </head>
 <body>
@@ -702,6 +786,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         <button class="side-btn" onclick="cdToActiveFile()" title="CD to Explorer Selection">📂</button>
         <button class="side-btn" id="reload-btn" onclick="reloadExtensions()" title="Reload Extensions" style="display: none;">🔄</button>
         <button class="side-btn" id="version-btn" onclick="checkVersion()" title="Check Version" style="display: none;">📦</button>
+        <button class="side-btn" id="github-btn" onclick="openGithubModal()" title="Download GitHub Repos">🐙</button>
         <button class="side-btn" onclick="openSettings()" title="Settings">⚙️</button>
     </div>
     <div class="modal-overlay" id="modal-overlay">
@@ -728,6 +813,14 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                     <div class="toggle-switch" id="toggle-confirm-delete" onclick="toggleConfirmDelete()"></div>
                 </div>
                 <div class="toggle-row">
+                    <span>Show GitHub Button</span>
+                    <div class="toggle-switch" id="toggle-github" onclick="toggleGithubButton()"></div>
+                </div>
+                <div style="margin-top: 10px;">
+                    <label>Default GitHub Username</label>
+                    <input type="text" id="github-username-input" placeholder="e.g. microsoft" onchange="updateGithubUsername(this.value)">
+                </div>
+                <div class="toggle-row">
                     <span>Show Version Checker</span>
                     <div class="toggle-switch" id="toggle-version-checker" onclick="toggleVersionChecker()"></div>
                 </div>
@@ -741,6 +834,22 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             </div>
             <div class="modal-buttons" style="margin-top: 15px;">
                 <button class="modal-btn" onclick="closeSettings()">Close</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="github-overlay">
+        <div class="modal" style="max-width: 400px;">
+            <h3>🐙 Download GitHub Repos</h3>
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <input type="text" id="github-search-user" placeholder="Enter GitHub username..." style="margin-bottom: 0;">
+                <button class="modal-btn" onclick="fetchRepos()">Fetch</button>
+            </div>
+            <div id="github-status" style="font-size: 11px; opacity: 0.7; margin-bottom: 5px;"></div>
+            <div class="repo-list" id="repo-list">
+                <div style="padding: 20px; text-align: center; opacity: 0.5;">Enter a username to see repositories</div>
+            </div>
+            <div class="modal-buttons" style="margin-top: 15px;">
+                <button class="modal-btn secondary" onclick="closeGithubModal()">Close</button>
             </div>
         </div>
     </div>
@@ -853,6 +962,8 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                 case 'triggerAddSnippet': addSnippet(); break;
                 case 'triggerAddTab': addTab(); break;
                 case 'inputResponse': if (currentModalCallback) currentModalCallback(message.value); break;
+                case 'githubReposResponse': displayGithubRepos(message.repos); break;
+                case 'githubReposError': displayGithubError(message.message); break;
             }
         });
 
@@ -870,6 +981,15 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             if (toggleConfirmDelete) toggleConfirmDelete.classList.toggle('active', settings.confirmDelete);
             if (toggleVersionChecker) toggleVersionChecker.classList.toggle('active', settings.showVersionChecker);
             if (pathDisplay) pathDisplay.textContent = settings.configFilePath || 'No config file selected';
+            
+            const githubBtn = document.getElementById('github-btn');
+            const toggleGithub = document.getElementById('toggle-github');
+            if (githubBtn) githubBtn.style.display = settings.showGithubButton ? 'flex' : 'none';
+            if (toggleGithub) toggleGithub.classList.toggle('active', settings.showGithubButton);
+            
+            const githubInput = document.getElementById('github-username-input');
+            if (githubInput) githubInput.value = settings.githubUsername || '';
+            
             checkToolbarLayout();
         }
 
@@ -1279,6 +1399,11 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ type: 'saveSettings', settings });
         }
 
+        function toggleGithubButton() {
+            settings.showGithubButton = !settings.showGithubButton;
+            vscode.postMessage({ type: 'saveSettings', settings });
+        }
+
         let versionData = { localVersion: null, remoteVersion: null, repoUrl: null, projectName: null };
 
         function checkVersion() {
@@ -1356,6 +1481,76 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         function selectConfigPath() { vscode.postMessage({ type: 'selectConfigPath' }); }
         function reloadExtensions() { vscode.postMessage({ type: 'reloadExtensions' }); }
         function cdToActiveFile() { vscode.postMessage({ type: 'cdToActiveFile' }); }
+
+        // GitHub Downloader logic
+        function openGithubModal() {
+            document.getElementById('github-overlay').style.display = 'flex';
+            const searchInput = document.getElementById('github-search-user');
+            if (settings.githubUsername) {
+                searchInput.value = settings.githubUsername;
+            }
+        }
+
+        function closeGithubModal() {
+            document.getElementById('github-overlay').style.display = 'none';
+        }
+
+        function updateGithubUsername(val) {
+            settings.githubUsername = val;
+            vscode.postMessage({ type: 'saveSettings', settings });
+        }
+
+        function fetchRepos() {
+            const username = document.getElementById('github-search-user').value.trim();
+            if (!username) return;
+            
+            const status = document.getElementById('github-status');
+            const list = document.getElementById('repo-list');
+            
+            status.textContent = 'Fetching repositories...';
+            list.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">Loading...</div>';
+            
+            vscode.postMessage({ type: 'fetchGithubRepos', username });
+        }
+
+        function displayGithubRepos(repos) {
+            const status = document.getElementById('github-status');
+            const list = document.getElementById('repo-list');
+            
+            status.textContent = 'Found ' + repos.length + ' repositories';
+            list.innerHTML = '';
+            
+            if (repos.length === 0) {
+                list.innerHTML = '<div style="padding: 20px; text-align: center; opacity: 0.5;">No public repositories found</div>';
+                return;
+            }
+            
+            repos.forEach(repo => {
+                const el = document.createElement('div');
+                el.className = 'repo-item';
+                el.innerHTML = \`
+                    <div class="repo-name">📦 \${repo.name}</div>
+                    \${repo.description ? \`<div class="repo-desc">\${repo.description}</div>\` : ''}
+                    <div class="repo-meta">
+                        <span>⭐ \${repo.stars}</span>
+                        \${repo.language ? \`<span>🔹 \${repo.language}</span>\` : ''}
+                        <span>📅 \${new Date(repo.updatedAt).toLocaleDateString()}</span>
+                    </div>
+                \`;
+                el.onclick = () => {
+                    vscode.postMessage({ type: 'cloneRepo', cloneUrl: repo.cloneUrl, name: repo.name });
+                    closeGithubModal();
+                };
+                list.appendChild(el);
+            });
+        }
+
+        function displayGithubError(error) {
+            const status = document.getElementById('github-status');
+            const list = document.getElementById('repo-list');
+            status.textContent = 'Error: ' + error;
+            list.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--vscode-errorForeground);">Failed to load repositories</div>';
+        }
 
         document.addEventListener('click', () => {
             document.getElementById('context-menu').style.display = 'none';
