@@ -1,0 +1,291 @@
+{
+  "items": [
+    {
+      "id": "tab-web",
+      "name": "🌐 Web Dev",
+      "type": "tab",
+      "color": "#3b82f6"
+    },
+    {
+      "id": "folder-frontend",
+      "name": "🎨 Frontend",
+      "type": "folder",
+      "color": "#ec4899",
+      "parentId": "tab-web",
+      "expanded": true
+    },
+    {
+      "id": "folder-react",
+      "name": "⚛️ React Studio",
+      "type": "folder",
+      "color": "#61dafb",
+      "parentId": "folder-frontend",
+      "expanded": true
+    },
+    {
+      "id": "snip-npm-start",
+      "name": "🚀 Start Dev Server",
+      "command": "npm start",
+      "description": "Starts the local development server for the current project.",
+      "type": "snippet",
+      "parentId": "folder-react"
+    },
+    {
+      "id": "snip-npm-install",
+      "name": "📦 Install Package",
+      "command": "npm install {{arg$1:package-name}}",
+      "description": "Installs a new npm package. Prompts for the package name.",
+      "type": "snippet",
+      "parentId": "folder-react"
+    },
+    {
+      "id": "sep-1",
+      "type": "separator",
+      "parentId": "folder-react"
+    },
+    {
+      "id": "snip-build",
+      "name": "🏗️ Build Production",
+      "command": "npm run build",
+      "description": "Generates the production build in the /dist folder.",
+      "type": "snippet",
+      "parentId": "folder-react"
+    },
+    {
+      "id": "folder-backend",
+      "name": "⚙️ Backend",
+      "type": "folder",
+      "color": "#8b5cf6",
+      "parentId": "tab-web",
+      "expanded": true
+    },
+    {
+      "id": "snip-node-run",
+      "name": "🟢 Run Server",
+      "command": "node index.js",
+      "description": "Runs the main entry point of the Node.js application.",
+      "type": "snippet",
+      "parentId": "folder-backend"
+    },
+    {
+      "id": "tab-rust",
+      "name": "🦀 Rust Dev",
+      "type": "tab",
+      "color": "#dea584"
+    },
+    {
+      "id": "folder-cargo",
+      "name": "📦 Cargo Ops",
+      "type": "folder",
+      "color": "#f97316",
+      "parentId": "tab-rust",
+      "expanded": true
+    },
+    {
+      "id": "folder-cargo-build",
+      "name": "🏗️ Build Modes",
+      "type": "folder",
+      "color": "#fbbf24",
+      "parentId": "folder-cargo",
+      "expanded": true
+    },
+    {
+      "id": "snip-cargo-debug",
+      "name": "🐛 Build Debug",
+      "command": "cargo build",
+      "description": "Compiles the current package in debug mode.",
+      "type": "snippet",
+      "parentId": "folder-cargo-build"
+    },
+    {
+      "id": "snip-cargo-release",
+      "name": "🚀 Build Release",
+      "command": "cargo build --release",
+      "description": "Compiles the current package in release mode with optimizations.",
+      "type": "snippet",
+      "parentId": "folder-cargo-build"
+    },
+    {
+      "id": "snip-cargo-run",
+      "name": "🏃 Run Project",
+      "command": "cargo run",
+      "description": "Runs the binary or example of the local package.",
+      "type": "snippet",
+      "parentId": "folder-cargo"
+    },
+    {
+      "id": "snip-cargo-test",
+      "name": "🧪 Run Tests",
+      "command": "cargo test",
+      "description": "Runs the unit and integration tests.",
+      "type": "snippet",
+      "parentId": "folder-cargo"
+    },
+    {
+      "id": "tab-python",
+      "name": "🐍 Python Lab",
+      "type": "tab",
+      "color": "#ffd43b"
+    },
+    {
+      "id": "folder-venv",
+      "name": "🌐 Environment",
+      "type": "folder",
+      "color": "#4b8bbe",
+      "parentId": "tab-python",
+      "expanded": true
+    },
+    {
+      "id": "snip-venv-create",
+      "name": "🛠️ Create Venv",
+      "command": "python -m venv {{arg$1:venv-name}}",
+      "description": "Creates a new virtual environment.",
+      "type": "snippet",
+      "parentId": "folder-venv"
+    },
+    {
+      "id": "snip-pip-install",
+      "name": "📦 Pip Install",
+      "command": "pip install {{arg$1:package-name}}",
+      "description": "Installs a Python package using pip.",
+      "type": "snippet",
+      "parentId": "folder-venv"
+    },
+    {
+      "id": "folder-py-test",
+      "name": "🧪 Testing",
+      "type": "folder",
+      "color": "#22c55e",
+      "parentId": "tab-python",
+      "expanded": true
+    },
+    {
+      "id": "snip-pytest",
+      "name": "🏃 Run Pytest",
+      "command": "pytest",
+      "description": "Runs all tests found by pytest.",
+      "type": "snippet",
+      "parentId": "folder-py-test"
+    },
+    {
+      "id": "tab-vsce",
+      "name": "🔌 VSCE Studio",
+      "type": "tab",
+      "color": "#007acc"
+    },
+    {
+      "id": "snip-vsce-package",
+      "name": "📦 Package Extension",
+      "command": "vsce package",
+      "description": "Packages the extension into a .vsix file.",
+      "type": "snippet",
+      "parentId": "tab-vsce"
+    },
+    {
+      "id": "snip-vsce-publish",
+      "name": "📤 Publish Extension",
+      "command": "vsce publish {{arg$1:version-type}}",
+      "description": "Publishes the extension to the marketplace (patch, minor, major).",
+      "type": "snippet",
+      "parentId": "tab-vsce"
+    },
+    {
+      "id": "tab-git",
+      "name": "🐙 Git Ops",
+      "type": "tab",
+      "color": "#f97316"
+    },
+    {
+      "id": "folder-git-branch",
+      "name": "🌿 Branching",
+      "type": "folder",
+      "color": "#84cc16",
+      "parentId": "tab-git",
+      "expanded": false
+    },
+    {
+      "id": "snip-git-checkout",
+      "name": "🔀 Checkout Branch",
+      "command": "git checkout {{arg$1:branch-name}}",
+      "description": "Switches to the specified branch.",
+      "type": "snippet",
+      "parentId": "folder-git-branch"
+    },
+    {
+      "id": "snip-git-new-branch",
+      "name": "✨ New Branch",
+      "command": "git checkout -b {{arg$1:new-branch-name}}",
+      "description": "Creates and switches to a new branch.",
+      "type": "snippet",
+      "parentId": "folder-git-branch"
+    },
+    {
+      "id": "snip-git-status",
+      "name": "🔍 Git Status",
+      "command": "git status",
+      "description": "Shows the working tree status.",
+      "type": "snippet",
+      "parentId": "tab-git"
+    },
+    {
+      "id": "snip-git-commit",
+      "name": "📝 Smart Commit",
+      "command": "git add . && git commit -m \"{{arg$1:commit-message}}\"",
+      "description": "Stages all changes and commits with a custom message.",
+      "type": "snippet",
+      "parentId": "tab-git"
+    },
+    {
+      "id": "snip-git-push",
+      "name": "📤 Push to Origin",
+      "command": "git push origin {{arg$1:branch-name}}",
+      "description": "Pushes local commits to the specified remote branch.",
+      "type": "snippet",
+      "parentId": "tab-git"
+    },
+    {
+      "id": "folder-docker",
+      "name": "🐳 Docker",
+      "type": "folder",
+      "color": "#0ea5e9",
+      "expanded": false,
+      "parentId": "tab-rust"
+    },
+    {
+      "id": "snip-docker-ps",
+      "name": "📋 List Containers",
+      "command": "docker ps",
+      "description": "Lists all running Docker containers.",
+      "type": "snippet",
+      "parentId": "folder-docker"
+    },
+    {
+      "id": "snip-docker-run",
+      "name": "🏃 Run Image",
+      "command": "docker run -d -p {{arg$1:port}}:{{arg$2:container-port}} {{arg$3:image-name}}",
+      "description": "Runs a Docker image in detached mode with port mapping.",
+      "type": "snippet",
+      "parentId": "folder-docker"
+    },
+    {
+      "id": "1768951067832",
+      "name": "dddd",
+      "command": "",
+      "description": "",
+      "type": "snippet",
+      "parentId": "tab-git"
+    }
+  ],
+  "settings": {
+    "showReloadButton": true,
+    "configFilePath": "c:\\Users\\Nephystos\\OneDrive\\Projets\\Coding\\AcidSnip\\acidsnip-config.json",
+    "confirmDelete": true,
+    "showVersionChecker": true,
+    "githubUsername": "microsoft",
+    "showGithubButton": true,
+    "executionMode": "locked",
+    "enableRichTooltips": true,
+    "commandHistoryLimit": 20,
+    "clipboardHistoryLimit": 20
+  }
+}

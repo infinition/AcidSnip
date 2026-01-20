@@ -19,6 +19,10 @@ interface Settings {
     showVersionChecker: boolean;
     githubUsername?: string;
     showGithubButton: boolean;
+    executionMode: 'terminal' | 'editor' | 'locked';
+    enableRichTooltips: boolean;
+    commandHistoryLimit: number;
+    clipboardHistoryLimit: number;
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -39,6 +43,9 @@ export function activate(context: vscode.ExtensionContext) {
         }),
         vscode.commands.registerCommand('fastSnippetTerminal.cdHere', (uri: vscode.Uri) => {
             provider.cdToUri(uri);
+        }),
+        vscode.commands.registerCommand('fastSnippetTerminal.showHistory', () => {
+            provider.sendMessage({ type: 'openHistory' });
         })
     );
 }
@@ -50,7 +57,48 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _context: vscode.ExtensionContext
-    ) { }
+    ) {
+        this._startClipboardWatcher();
+    }
+
+    private _lastClipboardText: string = '';
+    private _startClipboardWatcher() {
+        setInterval(async () => {
+            try {
+                const text = await vscode.env.clipboard.readText();
+                if (text && text !== this._lastClipboardText) {
+                    this._lastClipboardText = text;
+                    this._addToClipboardHistory(text);
+                }
+            } catch (e) {
+                // Ignore errors
+            }
+        }, 1000);
+    }
+
+    private async _addToClipboardHistory(text: string) {
+        const settings = await this.getStoredSettings();
+        let history: string[] = this._context.globalState.get('clipboardHistory', []);
+        history = history.filter(h => h !== text);
+        history.unshift(text);
+        if (history.length > settings.clipboardHistoryLimit) {
+            history = history.slice(0, settings.clipboardHistoryLimit);
+        }
+        await this._context.globalState.update('clipboardHistory', history);
+        this._view?.webview.postMessage({ type: 'loadHistory', clipboardHistory: history });
+    }
+
+    private async _addToCommandHistory(command: string) {
+        const settings = await this.getStoredSettings();
+        let history: string[] = this._context.globalState.get('commandHistory', []);
+        history = history.filter(h => h !== command);
+        history.unshift(command);
+        if (history.length > settings.commandHistoryLimit) {
+            history = history.slice(0, settings.commandHistoryLimit);
+        }
+        await this._context.globalState.update('commandHistory', history);
+        this._view?.webview.postMessage({ type: 'loadHistory', commandHistory: history });
+    }
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -68,6 +116,11 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.onDidReceiveMessage(async (data) => {
             switch (data.type) {
+                case 'ready':
+                    this.sendItems();
+                    this.sendSettings();
+                    this.sendHistory();
+                    break;
                 case 'saveItems':
                     await this.saveItems(data.items);
                     break;
@@ -111,7 +164,18 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                         try {
                             const content = await vscode.workspace.fs.readFile(importUri[0]);
                             const configData = JSON.parse(Buffer.from(content).toString('utf8'));
-                            const defaultSettings: Settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, githubUsername: '', showGithubButton: true };
+                            const defaultSettings: Settings = {
+                                showReloadButton: false,
+                                configFilePath: '',
+                                confirmDelete: false,
+                                showVersionChecker: false,
+                                githubUsername: '',
+                                showGithubButton: true,
+                                executionMode: 'terminal',
+                                enableRichTooltips: true,
+                                commandHistoryLimit: 20,
+                                clipboardHistoryLimit: 20
+                            };
                             const items = configData.items || [];
                             const settings = { ...defaultSettings, ...configData.settings };
                             await this.writeConfigToFile(items, settings);
@@ -255,7 +319,18 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
     }
 
     private async getStoredSettings(): Promise<Settings> {
-        const defaultSettings: Settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, githubUsername: '', showGithubButton: true };
+        const defaultSettings: Settings = {
+            showReloadButton: false,
+            configFilePath: '',
+            confirmDelete: false,
+            showVersionChecker: false,
+            githubUsername: '',
+            showGithubButton: true,
+            executionMode: 'terminal',
+            enableRichTooltips: true,
+            commandHistoryLimit: 20,
+            clipboardHistoryLimit: 20
+        };
         const config = await this.readConfigFromFile();
         // Get configFilePath from globalState (not from file)
         const configFilePath = this.getConfigFilePath();
@@ -272,6 +347,12 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             const settings = await this.getStoredSettings();
             this._view.webview.postMessage({ type: 'loadSettings', settings });
         }
+    }
+
+    private sendHistory() {
+        const commandHistory = this._context.globalState.get('commandHistory', []);
+        const clipboardHistory = this._context.globalState.get('clipboardHistory', []);
+        this._view?.webview.postMessage({ type: 'loadHistory', commandHistory, clipboardHistory });
     }
 
     private async getVersionInfo(): Promise<{ localVersion: string | null, remoteVersion: string | null, repoUrl: string | null, projectName: string | null, error: string | null }> {
@@ -488,9 +569,23 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             });
         }
 
-        const terminal = vscode.window.activeTerminal || vscode.window.createTerminal('AcidSnip');
-        terminal.show();
-        terminal.sendText(finalCmd);
+        const settings = await this.getStoredSettings();
+        this._addToCommandHistory(finalCmd);
+
+        if (settings.executionMode === 'editor') {
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                editor.edit(editBuilder => {
+                    editBuilder.insert(editor.selection.active, finalCmd);
+                });
+            } else {
+                vscode.window.showWarningMessage('No active text editor to insert snippet.');
+            }
+        } else {
+            const terminal = vscode.window.activeTerminal || vscode.window.createTerminal('AcidSnip');
+            terminal.show();
+            terminal.sendText(finalCmd);
+        }
     }
 
     public async cdToUri(uri?: vscode.Uri) {
@@ -641,27 +736,174 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             background-color: var(--vscode-editor-background);
             padding: 0; margin: 0; display: flex; flex-direction: row; height: 100vh; overflow: hidden;
         }
+        .execution-toggle-btn {
+            padding: 5px 10px; cursor: pointer; opacity: 0.7; font-size: 14px;
+            user-select: none; display: flex; align-items: center; justify-content: center;
+            border-bottom: 2px solid transparent; flex-shrink: 0;
+        }
+        .execution-toggle-btn:hover { opacity: 1; background-color: var(--vscode-list-hoverBackground); }
+        
+        .settings-btn {
+            padding: 5px 10px; cursor: pointer; opacity: 0.7; font-size: 14px;
+            user-select: none; display: flex; align-items: center; justify-content: center;
+            border-bottom: 2px solid transparent; flex-shrink: 0; margin-left: auto;
+        }
+        .settings-btn:hover { opacity: 1; background-color: var(--vscode-list-hoverBackground); }
+
+        .drop-indicator {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: var(--vscode-focusBorder);
+            z-index: 100;
+            pointer-events: none;
+            display: none;
+        }
+        .drop-indicator.vertical {
+            width: 2px;
+            height: 100%;
+            top: 0;
+            bottom: 0;
+            left: auto;
+            right: auto;
+        }
+        
         .tabs-container {
             display: flex; overflow-x: auto; overflow-y: hidden;
             background-color: var(--vscode-sideBarSectionHeader-background);
             border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border);
-            padding: 0 5px; align-items: center; height: 38px; flex-shrink: 0; white-space: nowrap; scrollbar-width: none;
+            padding: 0 5px; align-items: center; height: 38px; flex-shrink: 0; white-space: nowrap;
         }
-        .tabs-container::-webkit-scrollbar { display: none; }
+        .tabs-container::-webkit-scrollbar { height: 3px; }
+        .tabs-container::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); border-radius: 3px; }
+        .tabs-container::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground); }
         .tab {
             padding: 5px 10px; cursor: pointer; opacity: 0.7; border-bottom: 2px solid transparent; font-size: 12px;
-            user-select: none; display: flex; align-items: center; gap: 5px;
+            user-select: none; display: flex; align-items: center; gap: 5px; flex-shrink: 0;
         }
         .tab:hover { opacity: 1; background-color: var(--vscode-list-hoverBackground); }
         .tab.active { opacity: 1; border-bottom-color: var(--vscode-activityBarBadge-background); font-weight: bold; }
-        .main-container { flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100vh; }
+        .main-container { flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100vh; position: relative; }
         .content { flex: 1; overflow-y: auto; padding: 10px; }
+        
+        /* Sidebar & FAB Integration */
         .sidebar {
             width: 44px; background-color: var(--vscode-sideBar-background);
-            border-left: 1px solid var(--vscode-sideBar-border);
-            display: flex; flex-direction: column; align-items: center; padding: 10px 0; gap: 12px; flex-shrink: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 0; gap: 12px; flex-shrink: 0;
             transition: all 0.2s ease;
+            position: relative;
         }
+        .sidebar-left { border-right: 1px solid var(--vscode-sideBar-border); cursor: pointer; }
+        .sidebar-left:hover { background-color: rgba(255, 255, 255, 0.03); }
+        .sidebar-right { border-left: 1px solid var(--vscode-sideBar-border); }
+        .sidebar-right.horizontal {
+            width: 100%;
+            height: 44px;
+            flex-direction: row;
+            border-left: none;
+            border-top: 1px solid var(--vscode-sideBar-border);
+            padding: 0 10px;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .side-add-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .side-add-btn {
+            width: 32px; height: 32px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; border-radius: 50%; font-size: 20px;
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            transition: all 0.2s;
+        }
+        .side-add-btn:hover {
+            background-color: var(--vscode-button-hoverBackground);
+            transform: scale(1.1) rotate(90deg);
+        }
+        .side-add-menu {
+            position: absolute;
+            left: 38px; /* Reduced to eliminate gap */
+            top: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(-5px);
+            transition: all 0.2s ease;
+            z-index: 1100;
+            background-color: var(--vscode-editorWidget-background);
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid var(--vscode-widget-border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        /* Bridge to stabilize hover */
+        .side-add-menu::before {
+            content: '';
+            position: absolute;
+            left: -15px;
+            top: 0;
+            width: 15px;
+            height: 100%;
+            background: transparent;
+        }
+        .side-add-menu.horizontal {
+            flex-direction: row;
+            left: 45px;
+            top: 0;
+            transform: translateX(-5px);
+        }
+        .side-add-menu.horizontal .side-add-item::after {
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            right: auto;
+        }
+        .side-add-menu.horizontal .side-add-item:hover::after {
+            opacity: 1;
+            transform: translateX(-50%) translateY(5px);
+        }
+        .side-add-container:hover .side-add-menu {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
+        }
+        .side-add-item {
+            width: 32px; height: 32px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; border-radius: 6px; font-size: 16px;
+            transition: all 0.2s;
+            color: var(--vscode-foreground);
+        }
+        .side-add-item:hover {
+            background-color: var(--vscode-list-hoverBackground);
+            transform: scale(1.1);
+        }
+        .side-add-item::after {
+            content: attr(data-label);
+            position: absolute;
+            left: 40px;
+            background-color: var(--vscode-editorWidget-background);
+            color: var(--vscode-foreground);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            border: 1px solid var(--vscode-widget-border);
+        }
+        .side-add-item:hover::after {
+            opacity: 1;
+        }
+
         .side-btn {
             width: 32px; height: 32px; display: flex; justify-content: center; align-items: center;
             cursor: pointer; border-radius: 6px; font-size: 18px; opacity: 0.8;
@@ -692,6 +934,23 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .drag-handle { cursor: grab; opacity: 0.4; font-size: 14px; padding: 0 4px; display: flex; align-items: center; }
         .drag-handle:hover { opacity: 1; }
         .dragging .drag-handle { cursor: grabbing; }
+        .locked-mode .snippet-item, .locked-mode .folder-header { cursor: grab; }
+        .locked-mode .snippet-item:active, .locked-mode .folder-header:active { cursor: grabbing; }
+        .locked-mode .drag-handle { display: none; }
+        .snippet-item.locked { opacity: 0.8; }
+        
+        .inline-edit-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--vscode-focusBorder);
+            color: var(--vscode-foreground);
+            font-family: inherit;
+            font-size: inherit;
+            width: 100%;
+            padding: 0;
+            margin: 0;
+            outline: none;
+        }
         .snippet-item.separator {
             height: 24px; margin: 4px 0; padding: 0 8px; cursor: default; border-left: none; flex-shrink: 0; position: relative;
             display: flex; align-items: center; background: transparent; gap: 8px;
@@ -746,11 +1005,57 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .toggle-switch::after { content: ''; position: absolute; width: 16px; height: 16px; background: var(--vscode-foreground); border-radius: 50%; top: 2px; left: 2px; transition: left 0.2s; }
         .toggle-switch.active::after { left: 18px; }
         .path-display { font-size: 11px; opacity: 0.7; word-break: break-all; padding: 5px; background: var(--vscode-input-background); border-radius: 2px; margin-top: 5px; }
+        
+        /* Settings Tabs */
+        .settings-tabs { display: flex; border-bottom: 1px solid var(--vscode-widget-border); margin-bottom: 15px; gap: 10px; }
+        .settings-tab { padding: 5px 10px; cursor: pointer; opacity: 0.6; font-size: 12px; border-bottom: 2px solid transparent; }
+        .settings-tab.active { opacity: 1; border-bottom-color: var(--vscode-activityBarBadge-background); font-weight: bold; }
+        .settings-content { display: none; }
+        .settings-content.active { display: block; }
+        .settings-footer { display: flex; justify-content: flex-end; margin-top: 15px; }
+        
+        .history-tabs { display: flex; border-bottom: 1px solid var(--vscode-widget-border); margin-bottom: 10px; gap: 10px; }
+        .history-tab { padding: 5px 10px; cursor: pointer; opacity: 0.6; font-size: 12px; border-bottom: 2px solid transparent; }
+        .history-tab.active { opacity: 1; border-bottom-color: var(--vscode-activityBarBadge-background); font-weight: bold; }
+        .history-list { flex: 1; overflow-y: auto; display: none; flex-direction: column; gap: 4px; padding-bottom: 10px; }
+        .history-list.active { display: flex; }
+        .history-item { 
+            padding: 8px 10px; background: var(--vscode-list-inactiveSelectionBackground); 
+            border-radius: 4px; cursor: pointer; font-size: 11px; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            border-left: 3px solid transparent; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        }
+        .history-item:hover { background: var(--vscode-list-hoverBackground); }
+        .history-item.copied { border-left-color: #22c55e; }
+        .history-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+        .history-item-actions { display: none; gap: 4px; }
+        .history-item:hover .history-item-actions { display: flex; }
+        .history-action-btn { 
+            padding: 2px 4px; border-radius: 3px; background: var(--vscode-button-background); 
+            color: var(--vscode-button-foreground); font-size: 10px; cursor: pointer; border: none;
+        }
+        .history-action-btn:hover { background: var(--vscode-button-hoverBackground); }
+        .history-action-btn.disabled { opacity: 0.5; cursor: not-allowed; }
+        .history-copy-btn { 
+            background: none; border: none; cursor: pointer; opacity: 0; 
+            padding: 2px 6px; font-size: 12px; margin-left: auto;
+            transition: opacity 0.2s;
+        }
+        .history-item:hover .history-copy-btn { opacity: 0.6; }
+        .history-copy-btn:hover { opacity: 1 !important; transform: scale(1.1); }
+        .history-view-container { display: flex; flex-direction: column; height: 100%; }
         .search-container { padding: 8px 10px; border-bottom: 1px solid var(--vscode-widget-border); display: none; }
         .search-container.active { display: block; }
         .search-input { width: 100%; padding: 6px 10px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; font-size: 12px; box-sizing: border-box; }
         .search-input:focus { outline: none; border-color: var(--vscode-focusBorder); }
-        .search-result { padding: 6px 10px; margin: 4px 0; border-radius: 4px; background: var(--vscode-list-inactiveSelectionBackground); cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .search-input-wrapper { position: relative; display: flex; align-items: center; }
+        .search-clear-btn { 
+            position: absolute; right: 10px; cursor: pointer; opacity: 0.5; 
+            font-size: 14px; display: none; user-select: none;
+        }
+        .search-clear-btn:hover { opacity: 1; }
+        .search-result { padding: 6px 10px; margin: 4px 0; border-radius: 4px; background: var(--vscode-list-inactiveSelectionBackground); cursor: pointer; display: flex; align-items: center; gap: 8px; border-left: 3px solid transparent; }
         .search-result:hover { background: var(--vscode-list-hoverBackground); }
         .search-result-path { font-size: 10px; opacity: 0.6; margin-left: auto; }
         .search-highlight { background: var(--vscode-editor-findMatchHighlightBackground); border-radius: 2px; padding: 0 2px; }
@@ -765,29 +1070,102 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .repo-name { font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 5px; }
         .repo-desc { font-size: 11px; opacity: 0.7; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .repo-meta { font-size: 10px; opacity: 0.5; margin-top: 4px; display: flex; gap: 10px; }
+        
+        .rich-tooltip {
+            position: fixed;
+            background: var(--vscode-editorWidget-background);
+            color: var(--vscode-editorWidget-foreground);
+            border: 1px solid var(--vscode-widget-border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            padding: 8px 12px;
+            border-radius: 4px;
+            z-index: 3000;
+            pointer-events: none;
+            display: none;
+            max-width: 300px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .tooltip-section { margin-bottom: 8px; }
+        .tooltip-section:last-child { margin-bottom: 0; }
+        .tooltip-label { font-weight: bold; font-size: 10px; opacity: 0.6; text-transform: uppercase; margin-bottom: 2px; }
+        .tooltip-value { word-break: break-all; }
+        .tooltip-command { font-family: var(--vscode-editor-font-family); background: rgba(0,0,0,0.2); padding: 2px 4px; border-radius: 2px; }
+        
+        /* Tab Overflow */
+        .tabs-wrapper { display: flex; align-items: center; width: 100%; position: relative; border-bottom: 1px solid var(--vscode-widget-border); }
+        .tabs-container { flex: 1; overflow-x: auto; border-bottom: none; display: flex; align-items: center; }
+        .tabs-container::-webkit-scrollbar { height: 3px; display: block; }
+        .tabs-container::-webkit-scrollbar-track { background: transparent; }
+        .tabs-container::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); border-radius: 3px; }
+        .tabs-container::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground); }
+        .overflow-btn { 
+            padding: 5px 8px; cursor: pointer; opacity: 0.7; font-size: 12px; 
+            display: none; align-items: center; justify-content: center;
+            border-left: 1px solid var(--vscode-widget-border);
+            background: var(--vscode-editor-background);
+        }
+        .overflow-btn:hover { opacity: 1; background: var(--vscode-list-hoverBackground); }
+        .overflow-btn.active { background: var(--vscode-list-activeSelectionBackground); }
+        .overflow-menu {
+            position: absolute; top: 100%; right: 0;
+            background: var(--vscode-dropdown-background);
+            border: 1px solid var(--vscode-widget-border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            border-radius: 0 0 4px 4px;
+            z-index: 2000; display: none;
+            max-height: 300px; overflow-y: auto;
+            min-width: 150px;
+        }
+        .overflow-menu.active { display: block; }
+        .overflow-item {
+            padding: 8px 12px; cursor: pointer; font-size: 12px;
+            display: flex; align-items: center; gap: 8px;
+            border-left: 3px solid transparent;
+        }
+        .overflow-item:hover { background: var(--vscode-list-hoverBackground); }
+        .overflow-item.active { background: var(--vscode-list-activeSelectionBackground); border-left-color: var(--vscode-activityBarBadge-background); }
     </style>
 </head>
 <body>
+    <div id="drop-indicator" class="drop-indicator"></div>
+    <div class="sidebar sidebar-left" onclick="if(event.target === this) toggleAllFolders()">
+        <div class="side-add-container">
+            <button class="side-add-btn" title="Add New...">+</button>
+            <div class="side-add-menu">
+                <div class="side-add-item" data-label="Add Snippet" onclick="addSnippet()">📄</div>
+                <div class="side-add-item" data-label="Add Smart Snippet" onclick="addSmartSnippet()">⚡</div>
+                <div class="side-add-item" data-label="Add Folder" onclick="addFolder()">📂</div>
+                <div class="side-add-item" data-label="Add Tab" onclick="addTab()">📑</div>
+                <div class="side-add-item" data-label="Add Separator" onclick="addSeparator()">➖</div>
+            </div>
+        </div>
+        <div class="side-spacer"></div>
+        <button class="side-btn" onclick="openHistory()" title="History">🕒</button>
+        <div class="side-spacer"></div>
+        <button class="side-btn" onclick="toggleSearch()" title="Search" id="search-btn">🔍</button>
+    </div>
     <div class="main-container">
-        <div class="tabs-container" id="tabs-container"></div>
+        <div class="tabs-wrapper">
+            <div class="execution-toggle-btn" id="execution-toggle" onclick="toggleExecutionMode()">💻</div>
+            <div class="tabs-container" id="tabs-container"></div>
+            <div class="overflow-btn" id="overflow-btn" onclick="toggleOverflowMenu()" ondragenter="toggleOverflowMenu()" title="Show all tabs">⌄</div>
+            <div class="settings-btn" id="settings-btn" onclick="openSettings()" title="Settings">⚙️</div>
+            <div class="overflow-menu" id="overflow-menu"></div>
+        </div>
         <div class="search-container" id="search-container">
-            <input type="text" class="search-input" id="search-input" placeholder="🔍 Search snippets, folders, tabs..." oninput="performSearch()" onkeydown="handleSearchKeydown(event)">
+            <div class="search-input-wrapper">
+                <input type="text" class="search-input" id="search-input" placeholder="🔍 Search snippets, folders, tabs..." oninput="performSearch()" onkeydown="handleSearchKeydown(event)">
+                <span class="search-clear-btn" id="search-clear-btn" onclick="clearSearch()">✕</span>
+            </div>
         </div>
         <div class="content" id="content"></div>
     </div>
-    <div class="sidebar">
-        <button class="side-btn primary" onclick="addSnippet()" title="Add Snippet">📄</button>
-        <button class="side-btn" onclick="addSmartSnippet()" title="Add Smart Snippet">⚡</button>
-        <button class="side-btn" onclick="addFolder()" title="Add Folder">📂</button>
-        <button class="side-btn" onclick="addTab()" title="Add Tab">📑</button>
-        <button class="side-btn" onclick="addSeparator()" title="Add Separator">➖</button>
-        <button class="side-btn" onclick="toggleSearch()" title="Search" id="search-btn">🔍</button>
-        <div class="side-spacer"></div>
+    <div class="sidebar sidebar-right">
         <button class="side-btn" onclick="cdToActiveFile()" title="CD to Explorer Selection">📂</button>
         <button class="side-btn" id="reload-btn" onclick="reloadExtensions()" title="Reload Extensions" style="display: none;">🔄</button>
         <button class="side-btn" id="version-btn" onclick="checkVersion()" title="Check Version" style="display: none;">📦</button>
         <button class="side-btn" id="github-btn" onclick="openGithubModal()" title="Download GitHub Repos">🐙</button>
-        <button class="side-btn" onclick="openSettings()" title="Settings">⚙️</button>
     </div>
     <div class="modal-overlay" id="modal-overlay">
         <div class="modal">
@@ -799,40 +1177,65 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
     </div>
-    <div class="modal-overlay" id="settings-overlay">
-        <div class="modal" style="max-width: 350px;">
-            <h3>⚙️ Settings</h3>
-            <div class="settings-section">
-                <h4>Display</h4>
+    <div class="modal-overlay" id="settings-overlay" onclick="if(event.target === this) closeSettings()">
+        <div class="modal" style="max-width: 300px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                <span style="font-size: 16px;">⚙️</span>
+                <h3 style="margin: 0;">Settings</h3>
+            </div>
+            
+            <div class="settings-tabs">
+                <div class="settings-tab active" onclick="switchSettingsTab('display')" id="tab-display">Display</div>
+                <div class="settings-tab" onclick="switchSettingsTab('config')" id="tab-config">Config</div>
+            </div>
+
+            <div id="settings-display" class="settings-content active">
                 <div class="toggle-row">
-                    <span>Show Reload Button</span>
+                    <span>Reload Button</span>
                     <div class="toggle-switch" id="toggle-reload" onclick="toggleReloadButton()"></div>
                 </div>
                 <div class="toggle-row">
-                    <span>Confirm before delete</span>
+                    <span>Confirm Delete</span>
                     <div class="toggle-switch" id="toggle-confirm-delete" onclick="toggleConfirmDelete()"></div>
                 </div>
                 <div class="toggle-row">
-                    <span>Show GitHub Button</span>
+                    <span>GitHub Button</span>
                     <div class="toggle-switch" id="toggle-github" onclick="toggleGithubButton()"></div>
                 </div>
                 <div style="margin-top: 10px;">
-                    <label>Default GitHub Username</label>
+                    <label>GitHub User</label>
                     <input type="text" id="github-username-input" placeholder="e.g. microsoft" onchange="updateGithubUsername(this.value)">
                 </div>
                 <div class="toggle-row">
-                    <span>Show Version Checker</span>
+                    <span>Version Checker</span>
                     <div class="toggle-switch" id="toggle-version-checker" onclick="toggleVersionChecker()"></div>
                 </div>
+                <div class="toggle-row">
+                    <span>Rich Tooltips</span>
+                    <div class="toggle-switch" id="toggle-rich-tooltips" onclick="toggleRichTooltips()"></div>
+                </div>
+                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label>Cmd Limit</label>
+                        <input type="number" id="cmd-limit-input" min="1" max="100" onchange="updateHistoryLimits()">
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Clip Limit</label>
+                        <input type="number" id="clip-limit-input" min="1" max="100" onchange="updateHistoryLimits()">
+                    </div>
+                </div>
             </div>
-            <div class="settings-section">
-                <h4>Configuration</h4>
-                <button class="modal-btn" onclick="exportConfig()" style="width: 100%; margin-bottom: 8px;">📤 Export Config</button>
-                <button class="modal-btn secondary" onclick="importConfig()" style="width: 100%; margin-bottom: 8px;">📥 Import Config</button>
-                <button class="modal-btn secondary" onclick="selectConfigPath()" style="width: 100%;">📁 Select Config File</button>
-                <div class="path-display" id="config-path-display">No config file selected</div>
+
+            <div id="settings-config" class="settings-content">
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <button class="modal-btn" onclick="exportConfig()" style="width: 100%;">📤 Export</button>
+                    <button class="modal-btn secondary" onclick="importConfig()" style="width: 100%;">📥 Import</button>
+                    <button class="modal-btn secondary" onclick="selectConfigPath()" style="width: 100%;">📁 Select File</button>
+                </div>
+                <div class="path-display" id="config-path-display" style="margin-top: 10px; font-size: 10px;">No config file selected</div>
             </div>
-            <div class="modal-buttons" style="margin-top: 15px;">
+
+            <div class="settings-footer">
                 <button class="modal-btn" onclick="closeSettings()">Close</button>
             </div>
         </div>
@@ -886,6 +1289,10 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                 <input type="color" id="color-input" value="#ffffff">
                 <div class="color-preview" id="color-preview"></div>
             </div>
+            <div id="recursive-color-row" style="display: none; margin-bottom: 10px; align-items: center; gap: 8px;">
+                <input type="checkbox" id="recursive-color-check" style="width: auto; margin: 0;">
+                <label style="margin: 0; font-size: 11px;">Apply to children</label>
+            </div>
             <div style="margin-bottom: 10px;">
                 <button class="modal-btn secondary" onclick="setPresetColor('')" style="padding: 2px 8px; margin: 2px;">Default</button>
                 <button class="modal-btn secondary" onclick="setPresetColor('#ef4444')" style="padding: 2px 8px; margin: 2px; background: #ef4444;">🔴</button>
@@ -912,6 +1319,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         </div>
     </div>
     <div class="context-menu" id="context-menu"></div>
+    <div id="rich-tooltip" class="rich-tooltip"></div>
     <script>
         const vscode = acquireVsCodeApi();
         let items = [];
@@ -921,7 +1329,9 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         let colorPickerItemId = null;
         let confirmCallback = null;
         let searchMode = false;
-        let settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false };
+        let settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, executionMode: 'terminal', commandHistoryLimit: 20, clipboardHistoryLimit: 20 };
+        let commandHistory = [];
+        let clipboardHistory = [];
 
         // Helper function to check if parentId is "root" (null or undefined)
         function isRootItem(item) {
@@ -933,6 +1343,32 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                 return isRootItem(item);
             }
             return item.parentId === parentId;
+        }
+
+        function isDescendant(parentId, childId) {
+            let current = items.find(i => i.id === childId);
+            const visited = new Set();
+            while (current && current.parentId) {
+                if (visited.has(current.id)) break; // Safety
+                visited.add(current.id);
+                if (current.parentId === parentId) return true;
+                current = items.find(i => i.id === current.parentId);
+            }
+            return false;
+        }
+
+        let lastActiveTabId = null;
+
+        function openHistory() {
+            if (activeTabId === 'history') {
+                // Toggle back to previous tab
+                activeTabId = lastActiveTabId || (items.some(i => isRootItem(i) && i.type !== 'tab') ? 'root' : (items.find(i => i.type === 'tab')?.id || null));
+                render();
+            } else {
+                lastActiveTabId = activeTabId;
+                activeTabId = 'history';
+                render();
+            }
         }
 
         window.addEventListener('message', event => {
@@ -947,14 +1383,22 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                         } else if (items.some(i => i.type === 'tab')) {
                             activeTabId = items.find(i => i.type === 'tab').id;
                         }
-                    } else if (activeTabId !== 'root' && !items.some(i => i.id === activeTabId)) {
+                    } else if (activeTabId !== 'root' && activeTabId !== 'history' && !items.some(i => i.id === activeTabId)) {
                         activeTabId = hasRootItems ? 'root' : (items.find(i => i.type === 'tab')?.id || null);
                     }
                     render();
                     break;
                 case 'loadSettings':
-                    settings = message.settings || { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false };
+                    settings = message.settings || { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, githubUsername: '', showGithubButton: true, executionMode: 'terminal', enableRichTooltips: true, commandHistoryLimit: 20, clipboardHistoryLimit: 20 };
                     updateSettingsUI();
+                    break;
+                case 'loadHistory':
+                    if (message.commandHistory) commandHistory = message.commandHistory;
+                    if (message.clipboardHistory) clipboardHistory = message.clipboardHistory;
+                    renderHistory();
+                    break;
+                case 'openHistory':
+                    openHistory();
                     break;
                 case 'versionInfo':
                     displayVersionInfo(message);
@@ -973,6 +1417,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             const toggleReload = document.getElementById('toggle-reload');
             const toggleConfirmDelete = document.getElementById('toggle-confirm-delete');
             const toggleVersionChecker = document.getElementById('toggle-version-checker');
+            const toggleRichTooltips = document.getElementById('toggle-rich-tooltips');
             const pathDisplay = document.getElementById('config-path-display');
             
             if (reloadBtn) reloadBtn.style.display = settings.showReloadButton ? 'flex' : 'none';
@@ -980,6 +1425,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             if (toggleReload) toggleReload.classList.toggle('active', settings.showReloadButton);
             if (toggleConfirmDelete) toggleConfirmDelete.classList.toggle('active', settings.confirmDelete);
             if (toggleVersionChecker) toggleVersionChecker.classList.toggle('active', settings.showVersionChecker);
+            if (toggleRichTooltips) toggleRichTooltips.classList.toggle('active', settings.enableRichTooltips);
             if (pathDisplay) pathDisplay.textContent = settings.configFilePath || 'No config file selected';
             
             const githubBtn = document.getElementById('github-btn');
@@ -990,8 +1436,292 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             const githubInput = document.getElementById('github-username-input');
             if (githubInput) githubInput.value = settings.githubUsername || '';
             
+            const cmdLimitInput = document.getElementById('cmd-limit-input');
+            const clipLimitInput = document.getElementById('clip-limit-input');
+            if (cmdLimitInput) cmdLimitInput.value = settings.commandHistoryLimit || 20;
+            if (clipLimitInput) clipLimitInput.value = settings.clipboardHistoryLimit || 20;
+            
+            updateExecutionModeUI();
             checkToolbarLayout();
         }
+
+        function toggleExecutionMode() {
+            const modes = ['terminal', 'editor', 'locked'];
+            let idx = modes.indexOf(settings.executionMode || 'terminal');
+            settings.executionMode = modes[(idx + 1) % modes.length];
+            vscode.postMessage({ type: 'saveSettings', settings });
+            updateExecutionModeUI();
+            render(); // Re-render to update drag handles and classes
+        }
+
+        function toggleRichTooltips() {
+            settings.enableRichTooltips = !settings.enableRichTooltips;
+            vscode.postMessage({ type: 'saveSettings', settings });
+            updateSettingsUI();
+        }
+
+        function updateExecutionModeUI() {
+            const btn = document.getElementById('execution-toggle');
+            if (btn) {
+                const mode = settings.executionMode || 'terminal';
+                if (mode === 'terminal') {
+                    btn.innerText = '💻';
+                    btn.title = 'Execution Mode: Terminal (Click to switch)';
+                } else if (mode === 'editor') {
+                    btn.innerText = '📝';
+                    btn.title = 'Execution Mode: Editor (Click to switch)';
+                } else {
+                    btn.innerText = '🔒';
+                    btn.title = 'Execution Mode: Locked (Reorganize only, click to switch)';
+                }
+            }
+            document.body.classList.toggle('locked-mode', settings.executionMode === 'locked');
+        }
+
+        function resetDropIndicator() {
+            const indicator = document.getElementById('drop-indicator');
+            if (!indicator) return;
+            indicator.style.display = 'none';
+            indicator.style.width = '';
+            indicator.style.height = '';
+            indicator.style.top = '';
+            indicator.style.left = '';
+            indicator.classList.remove('vertical');
+        }
+
+        function startInlineEdit(el, item) {
+            if (settings.executionMode !== 'locked') return;
+            
+            const nameEl = el.querySelector('.snippet-name') || el.querySelector('.folder-name') || el;
+            const originalName = item.name;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'inline-edit-input';
+            input.value = originalName;
+            
+            const finishEdit = (saveChanges) => {
+                if (saveChanges && input.value.trim() !== '') {
+                    item.name = input.value.trim();
+                    save();
+                }
+                render();
+            };
+
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') finishEdit(true);
+                if (e.key === 'Escape') finishEdit(false);
+            };
+            input.onblur = () => finishEdit(true);
+
+            nameEl.innerHTML = '';
+            nameEl.appendChild(input);
+            input.focus();
+            input.select();
+        }
+
+        function toggleAllFolders() {
+            const currentTabId = activeTabId === 'root' ? undefined : activeTabId;
+            const tabFolders = items.filter(i => i.type === 'folder' && matchesParent(i, currentTabId));
+            if (tabFolders.length === 0) return;
+            
+            const anyExpanded = tabFolders.some(f => f.expanded);
+            tabFolders.forEach(f => f.expanded = !anyExpanded);
+            save(); render();
+        }
+
+        function checkFabMenuLayout() {
+            const container = document.querySelector('.side-add-container');
+            const menu = document.querySelector('.side-add-menu');
+            if (!container || !menu) return;
+            
+            const rect = container.getBoundingClientRect();
+            const availableSpaceBelow = window.innerHeight - rect.top;
+            const menuHeight = 220; // Approximate height of vertical menu
+            
+            if (availableSpaceBelow < menuHeight) {
+                menu.classList.add('horizontal');
+            } else {
+                menu.classList.remove('horizontal');
+            }
+        }
+
+        function checkRightSidebarLayout() {
+            const sidebar = document.querySelector('.sidebar-right');
+            const body = document.body;
+            if (!sidebar) return;
+
+            const iconsCount = sidebar.querySelectorAll('.side-btn:not([style*="display: none"])').length;
+            const requiredHeight = iconsCount * 44 + 20; // 44px per icon + padding
+            
+            if (window.innerHeight < requiredHeight) {
+                sidebar.classList.add('horizontal');
+                // Move sidebar to bottom of main-container if not already there
+                const mainContainer = document.querySelector('.main-container');
+                if (sidebar.parentElement === body) {
+                    mainContainer.appendChild(sidebar);
+                }
+            } else {
+                sidebar.classList.remove('horizontal');
+                // Move sidebar back to body (after main-container)
+                if (sidebar.parentElement !== body) {
+                    body.appendChild(sidebar);
+                }
+            }
+        }
+
+        function checkOverflow() {
+            const container = document.getElementById('tabs-container');
+            const btn = document.getElementById('overflow-btn');
+            if (!container || !btn) return;
+
+            if (container.scrollWidth > container.clientWidth) {
+                btn.style.display = 'flex';
+            } else {
+                btn.style.display = 'none';
+                document.getElementById('overflow-menu').classList.remove('active');
+                btn.classList.remove('active');
+            }
+        }
+
+        function toggleOverflowMenu() {
+            const menu = document.getElementById('overflow-menu');
+            const btn = document.getElementById('overflow-btn');
+            const isActive = menu.classList.contains('active');
+            
+            if (isActive) {
+                menu.classList.remove('active');
+                btn.classList.remove('active');
+            } else {
+                renderOverflowMenu();
+                menu.classList.add('active');
+                btn.classList.add('active');
+            }
+        }
+
+        function renderOverflowMenu() {
+            const menu = document.getElementById('overflow-menu');
+            const container = document.getElementById('tabs-container');
+            const containerRect = container.getBoundingClientRect();
+            menu.innerHTML = '';
+            
+            const tabs = items.filter(i => i.type === 'tab');
+            const hasRootItems = items.some(i => isRootItem(i) && i.type !== 'tab');
+            
+            if (hasRootItems) {
+                tabs.unshift({ id: 'root', name: '🏠', type: 'tab' });
+            }
+
+            let hasHiddenTabs = false;
+
+            tabs.forEach(tab => {
+                // Find the tab element in the main bar
+                const tabEl = Array.from(container.children).find(el => el.innerText === tab.name && el.classList.contains('tab'));
+                
+                // Check visibility
+                let isVisible = false;
+                if (tabEl) {
+                    const rect = tabEl.getBoundingClientRect();
+                    isVisible = (rect.left >= containerRect.left && rect.right <= containerRect.right);
+                }
+
+                if (!isVisible) {
+                    hasHiddenTabs = true;
+                    const item = document.createElement('div');
+                    item.className = 'overflow-item' + (tab.id === activeTabId ? ' active' : '');
+                    item.innerHTML = tab.name;
+                    if (tab.color) item.style.color = tab.color;
+                    
+                    item.onclick = () => {
+                        activeTabId = tab.id;
+                        render();
+                        toggleOverflowMenu();
+                        
+                        // Scroll tab into view
+                        setTimeout(() => {
+                            const targetTab = Array.from(document.querySelectorAll('.tab')).find(el => el.innerText === tab.name);
+                            if (targetTab) targetTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                        }, 50);
+                    };
+
+                    // Drag & Drop Support
+                    let hoverTimer;
+                    item.ondragover = (e) => {
+                        e.preventDefault();
+                        item.style.background = 'var(--vscode-list-hoverBackground)';
+                        
+                        if (activeTabId !== tab.id && !hoverTimer) {
+                            hoverTimer = setTimeout(() => {
+                                activeTabId = tab.id;
+                                render();
+                                toggleOverflowMenu(); 
+                                
+                                // Scroll tab into view
+                                setTimeout(() => {
+                                    const targetTab = Array.from(document.querySelectorAll('.tab')).find(el => el.innerText === tab.name);
+                                    if (targetTab) targetTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                                }, 50);
+                            }, 500);
+                        }
+                    };
+                    item.ondragleave = () => {
+                        item.style.background = '';
+                        if (hoverTimer) {
+                            clearTimeout(hoverTimer);
+                            hoverTimer = null;
+                        }
+                    };
+                    item.ondrop = (e) => {
+                        e.preventDefault();
+                        item.style.background = '';
+                        if (hoverTimer) clearTimeout(hoverTimer);
+                        
+                        const draggedId = e.dataTransfer.getData('text/plain');
+                        const draggedItem = items.find(i => i.id === draggedId);
+                        
+                        if (draggedItem && draggedItem.type !== 'tab') {
+                            draggedItem.parentId = tab.id === 'root' ? undefined : tab.id;
+                            save(); render();
+                            toggleOverflowMenu(); // Close menu after drop
+                        }
+                    };
+
+                    menu.appendChild(item);
+                }
+            });
+
+            if (!hasHiddenTabs) {
+                const empty = document.createElement('div');
+                empty.className = 'overflow-item';
+                empty.style.opacity = '0.5';
+                empty.style.cursor = 'default';
+                empty.innerText = 'No hidden tabs';
+                menu.appendChild(empty);
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            checkFabMenuLayout();
+            checkRightSidebarLayout();
+            checkOverflow();
+        });
+        document.querySelector('.side-add-container').addEventListener('mouseenter', checkFabMenuLayout);
+        
+        // Close overflow menu when clicking outside
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('overflow-menu');
+            const btn = document.getElementById('overflow-btn');
+            if (menu.classList.contains('active') && !menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.remove('active');
+                btn.classList.remove('active');
+            }
+        });
+        
+        // Initial check
+        setTimeout(() => {
+            checkFabMenuLayout();
+            checkRightSidebarLayout();
+            checkOverflow();
+        }, 100);
 
         function save() { vscode.postMessage({ type: 'saveItems', items }); }
 
@@ -1000,17 +1730,47 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             const content = document.getElementById('content');
             tabsContainer.innerHTML = '';
             content.innerHTML = '';
+            
+            // Allow dropping on content to move to root of active tab
+            content.ondragover = (e) => {
+                e.preventDefault();
+                if (e.target === content) {
+                    content.classList.add('drag-over');
+                }
+            };
+            content.ondragleave = () => content.classList.remove('drag-over');
+            content.ondrop = (e) => {
+                e.preventDefault();
+                content.classList.remove('drag-over');
+                if (e.target === content) {
+                    const draggedId = e.dataTransfer.getData('text/plain');
+                    const draggedItem = items.find(i => i.id === draggedId);
+                    if (draggedItem) {
+                        draggedItem.parentId = activeTabId === 'root' ? undefined : activeTabId;
+                        // Move to end of list
+                        const idx = items.indexOf(draggedItem);
+                        items.splice(idx, 1);
+                        items.push(draggedItem);
+                        save(); render();
+                    }
+                }
+            };
 
             const tabs = items.filter(i => i.type === 'tab');
             const hasRootItems = items.some(i => isRootItem(i) && i.type !== 'tab');
+            
+            updateExecutionModeUI();
+
             if (hasRootItems) {
                 tabs.unshift({ id: 'root', name: '🏠', type: 'tab' });
             }
+            
 
             tabs.forEach(tab => {
                 const el = document.createElement('div');
                 el.className = 'tab' + (tab.id === activeTabId ? ' active' : '');
                 el.innerHTML = tab.name;
+                el.ondblclick = (e) => { e.stopPropagation(); startInlineEdit(el, tab); };
                 
                 if (tab.color) {
                     el.style.color = tab.color;
@@ -1020,22 +1780,85 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                     el.style.borderBottomColor = tab.color || 'var(--vscode-activityBarBadge-background)';
                 }
 
-                el.onclick = () => { activeTabId = tab.id; render(); };
+                let hoverTimer;
+                el.onclick = () => { 
+                    if (activeTabId !== tab.id) {
+                        activeTabId = tab.id; 
+                        render(); 
+                    }
+                };
+                el.ondblclick = (e) => { 
+                    e.stopPropagation(); 
+                    if (tab.id !== 'root') startInlineEdit(el, tab); 
+                };
                 el.draggable = true;
                 el.ondragstart = (e) => { e.dataTransfer.setData('text/plain', tab.id); el.classList.add('dragging'); };
-                el.ondragend = () => el.classList.remove('dragging');
-                el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag-over'); };
-                el.ondragleave = () => el.classList.remove('drag-over');
+                el.ondragend = () => {
+                    el.classList.remove('dragging');
+                    resetDropIndicator();
+                    if (hoverTimer) clearTimeout(hoverTimer);
+                };
+                el.ondragover = (e) => {
+                    e.preventDefault();
+                    
+                    // Hover to open tab logic
+                    if (activeTabId !== tab.id && !hoverTimer) {
+                        hoverTimer = setTimeout(() => {
+                            activeTabId = tab.id;
+                            render();
+                        }, 500);
+                    }
+
+                    resetDropIndicator();
+                    const indicator = document.getElementById('drop-indicator');
+                    const rect = el.getBoundingClientRect();
+                    const midpoint = rect.left + rect.width / 2;
+                    
+                    indicator.style.display = 'block';
+                    indicator.classList.add('vertical');
+                    indicator.style.height = rect.height + 'px';
+                    indicator.style.top = rect.top + 'px';
+                    
+                    if (e.clientX < midpoint) {
+                        indicator.style.left = rect.left + 'px';
+                        el.dataset.dropPos = 'before';
+                    } else {
+                        indicator.style.left = rect.right + 'px';
+                        el.dataset.dropPos = 'after';
+                    }
+                };
+                el.ondragleave = () => {
+                    resetDropIndicator();
+                    if (hoverTimer) {
+                        clearTimeout(hoverTimer);
+                        hoverTimer = null;
+                    }
+                };
                 el.ondrop = (e) => {
-                    e.preventDefault(); el.classList.remove('drag-over');
+                    e.preventDefault();
+                    resetDropIndicator();
+                    if (hoverTimer) {
+                        clearTimeout(hoverTimer);
+                        hoverTimer = null;
+                    }
+                    
                     const draggedId = e.dataTransfer.getData('text/plain');
                     const draggedItem = items.find(i => i.id === draggedId);
                     if (!draggedItem) return;
+                    
                     if (draggedItem.type === 'tab') {
                         const fromIdx = items.indexOf(draggedItem);
-                        const toIdx = items.indexOf(tab);
+                        let toIdx = items.indexOf(tab);
+                        const dropPos = el.dataset.dropPos;
+                        
                         items.splice(fromIdx, 1);
-                        items.splice(toIdx, 0, draggedItem);
+                        toIdx = items.indexOf(tab);
+                        
+                        if (dropPos === 'after') {
+                            items.splice(toIdx + 1, 0, draggedItem);
+                        } else {
+                            items.splice(toIdx, 0, draggedItem);
+                        }
                         save(); render();
                     } else {
                         draggedItem.parentId = tab.id === 'root' ? undefined : tab.id;
@@ -1049,7 +1872,14 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                 tabsContainer.appendChild(el);
             });
 
-            renderItems(activeTabId === 'root' ? undefined : activeTabId, content);
+            if (activeTabId === 'history') {
+                renderHistoryView(content);
+            } else {
+                renderItems(activeTabId === 'root' ? undefined : activeTabId, content);
+            }
+            
+            // Check for tab overflow
+            setTimeout(checkOverflow, 0);
         }
 
         function renderItems(parentId, container) {
@@ -1083,6 +1913,10 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                         folderEl.classList.toggle('expanded');
                         save();
                     };
+                    header.ondblclick = (e) => { e.stopPropagation(); startInlineEdit(header, item); };
+                    header.onmouseenter = (e) => TooltipManager.show(e, item);
+                    header.onmousemove = (e) => TooltipManager.move(e);
+                    header.onmouseleave = () => TooltipManager.hide();
 
                     const folderContent = document.createElement('div');
                     folderContent.className = 'folder-content';
@@ -1110,7 +1944,6 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                     const el = document.createElement('div');
                     el.className = 'snippet-item';
                     el.setAttribute('data-id', item.id);
-                    if (item.description) el.title = item.description;
                     
                     el.style.borderLeftColor = item.color || 'transparent';
                     el.style.color = item.color || 'inherit';
@@ -1124,7 +1957,14 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                             '<button class="action-btn" onclick="event.stopPropagation(); deleteItem(\\'' + item.id + '\\')">🗑</button>' +
                         '</div>';
                     
-                    el.onclick = () => vscode.postMessage({ type: 'executeCommand', command: item.command });
+                    el.ondblclick = (e) => { e.stopPropagation(); startInlineEdit(el, item); };
+                    el.onclick = (e) => {
+                        if (settings.executionMode === 'locked') return;
+                        vscode.postMessage({ type: 'executeCommand', command: item.command });
+                    };
+                    el.onmouseenter = (e) => TooltipManager.show(e, item);
+                    el.onmousemove = (e) => TooltipManager.move(e);
+                    el.onmouseleave = () => TooltipManager.hide();
                     setupDragDrop(el, item);
                     container.appendChild(el);
                 }
@@ -1132,32 +1972,112 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         }
 
         function setupDragDrop(el, item) {
-            const handle = el.querySelector('.drag-handle') || el;
+            const handle = (settings.executionMode === 'locked') ? el : (el.querySelector('.drag-handle') || el);
             handle.draggable = true;
             handle.ondragstart = (e) => {
+                // Prevent dragging if clicking on buttons
+                if (e.target.closest('.actions') || e.target.closest('.folder-toggle')) {
+                    e.preventDefault();
+                    return;
+                }
                 e.dataTransfer.setData('text/plain', item.id);
                 el.classList.add('dragging');
                 e.stopPropagation();
             };
-            handle.ondragend = () => el.classList.remove('dragging');
+            handle.ondragend = () => {
+                el.classList.remove('dragging');
+                resetDropIndicator();
+            };
 
-            el.ondragover = (e) => { e.preventDefault(); e.stopPropagation(); el.classList.add('drag-over'); };
-            el.ondragleave = () => el.classList.remove('drag-over');
+            let expandTimer;
+            el.ondragover = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                resetDropIndicator();
+                const indicator = document.getElementById('drop-indicator');
+                const rect = el.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                
+                indicator.style.display = 'block';
+                indicator.style.width = rect.width + 'px';
+                indicator.style.left = rect.left + 'px';
+                
+                if (e.clientY < midpoint) {
+                    indicator.style.top = rect.top + 'px';
+                    el.dataset.dropPos = 'before';
+                } else {
+                    indicator.style.top = rect.bottom + 'px';
+                    el.dataset.dropPos = 'after';
+                }
+                
+                if (item.type === 'folder' && e.clientX > rect.left + 20) {
+                    el.classList.add('drag-over');
+                    indicator.style.display = 'none';
+                    el.dataset.dropPos = 'inside';
+                    
+                    if (!item.expanded && !expandTimer) {
+                        expandTimer = setTimeout(() => {
+                            item.expanded = true;
+                            save(); render();
+                        }, 600);
+                    }
+                } else {
+                    el.classList.remove('drag-over');
+                    if (expandTimer) {
+                        clearTimeout(expandTimer);
+                        expandTimer = null;
+                    }
+                }
+            };
+            
+            el.ondragleave = () => {
+                el.classList.remove('drag-over');
+                resetDropIndicator();
+                if (expandTimer) {
+                    clearTimeout(expandTimer);
+                    expandTimer = null;
+                }
+            };
+            
             el.ondrop = (e) => {
-                e.preventDefault(); e.stopPropagation(); el.classList.remove('drag-over');
+                e.preventDefault();
+                e.stopPropagation();
+                el.classList.remove('drag-over');
+                resetDropIndicator();
+                if (expandTimer) {
+                    clearTimeout(expandTimer);
+                    expandTimer = null;
+                }
+                
                 const draggedId = e.dataTransfer.getData('text/plain');
                 const draggedItem = items.find(i => i.id === draggedId);
                 if (!draggedItem || draggedItem.id === item.id) return;
 
-                if (item.type === 'folder') {
+                // Prevent circular references
+                if (item.type === 'folder' && isDescendant(draggedItem.id, item.id)) {
+                    return;
+                }
+
+                const dropPos = el.dataset.dropPos;
+                
+                if (dropPos === 'inside' && item.type === 'folder') {
                     draggedItem.parentId = item.id;
                     item.expanded = true;
                 } else {
                     draggedItem.parentId = item.parentId;
                     const fromIdx = items.indexOf(draggedItem);
-                    const toIdx = items.indexOf(item);
+                    let toIdx = items.indexOf(item);
+                    
                     items.splice(fromIdx, 1);
-                    items.splice(toIdx, 0, draggedItem);
+                    // Re-calculate toIdx after removal
+                    toIdx = items.indexOf(item);
+                    
+                    if (dropPos === 'after') {
+                        items.splice(toIdx + 1, 0, draggedItem);
+                    } else {
+                        items.splice(toIdx, 0, draggedItem);
+                    }
                 }
                 save(); render();
             };
@@ -1236,7 +2156,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                 items.forEach(i => { if (i.parentId === id) i.parentId = deletedItem.parentId; });
             }
             items = items.filter(i => i.id !== id);
-            if (activeTabId === id) activeTabId = items.find(i => i.type === 'tab')?.id || null;
+            if (activeTabId === id) activeTabId = 'root';
             save(); render();
         }
 
@@ -1345,10 +2265,17 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             const item = items.find(i => i.id === id);
             const colorInput = document.getElementById('color-input');
             const colorPreview = document.getElementById('color-preview');
+            const recursiveRow = document.getElementById('recursive-color-row');
+            const recursiveCheck = document.getElementById('recursive-color-check');
+            
             const currentColor = item?.color || '#ffffff';
             colorInput.value = currentColor.startsWith('#') ? currentColor : '#ffffff';
             colorPreview.style.backgroundColor = currentColor || 'transparent';
             colorInput.oninput = () => { colorPreview.style.backgroundColor = colorInput.value; };
+            
+            if (recursiveRow) recursiveRow.style.display = (item && item.type === 'folder') ? 'flex' : 'none';
+            if (recursiveCheck) recursiveCheck.checked = false;
+
             document.getElementById('context-menu').style.display = 'none';
             document.getElementById('color-picker-overlay').style.display = 'flex';
         }
@@ -1364,10 +2291,29 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             const item = items.find(i => i.id === colorPickerItemId);
             if (item) {
                 const colorInput = document.getElementById('color-input');
-                item.color = colorInput.value === '#ffffff' ? '' : colorInput.value;
+                const recursiveCheck = document.getElementById('recursive-color-check');
+                const newColor = colorInput.value === '#ffffff' ? '' : colorInput.value;
+                
+                item.color = newColor;
+                
+                if (item.type === 'folder' && recursiveCheck && recursiveCheck.checked) {
+                    applyColorRecursively(item.id, newColor);
+                }
+                
                 save(); render();
             }
             closeColorPicker();
+        }
+
+        function applyColorRecursively(parentId, color) {
+            items.forEach(i => {
+                if (i.parentId === parentId) {
+                    i.color = color;
+                    if (i.type === 'folder') {
+                        applyColorRecursively(i.id, color);
+                    }
+                }
+            });
         }
 
         function closeColorPicker() {
@@ -1376,12 +2322,138 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         }
 
         function openSettings() {
-            document.getElementById('settings-overlay').style.display = 'flex';
-            updateSettingsUI();
+            const overlay = document.getElementById('settings-overlay');
+            if (overlay.style.display === 'flex') {
+                closeSettings();
+            } else {
+                overlay.style.display = 'flex';
+                switchSettingsTab('display');
+                updateSettingsUI();
+            }
+        }
+
+        function switchSettingsTab(tab) {
+            document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.settings-content').forEach(c => c.classList.remove('active'));
+            
+            document.getElementById('tab-' + tab).classList.add('active');
+            document.getElementById('settings-' + tab).classList.add('active');
         }
 
         function closeSettings() {
             document.getElementById('settings-overlay').style.display = 'none';
+        }
+
+        function updateHistoryLimits() {
+            settings.commandHistoryLimit = parseInt(document.getElementById('cmd-limit-input').value) || 20;
+            settings.clipboardHistoryLimit = parseInt(document.getElementById('clip-limit-input').value) || 20;
+            vscode.postMessage({ type: 'saveSettings', settings });
+        }
+
+
+        let activeHistoryTab = 'commands';
+        function switchHistoryTab(tab) {
+            activeHistoryTab = tab;
+            render();
+        }
+
+        function renderHistoryView(container) {
+            container.innerHTML = \`
+                <div class="history-view-container">
+                    <div class="history-tabs">
+                        <div class="history-tab \${activeHistoryTab === 'commands' ? 'active' : ''}" onclick="switchHistoryTab('commands')">Commands</div>
+                        <div class="history-tab \${activeHistoryTab === 'clipboard' ? 'active' : ''}" onclick="switchHistoryTab('clipboard')">Clipboard</div>
+                    </div>
+                    <div id="hist-commands" class="history-list \${activeHistoryTab === 'commands' ? 'active' : ''}"></div>
+                    <div id="hist-clipboard" class="history-list \${activeHistoryTab === 'clipboard' ? 'active' : ''}"></div>
+                </div>
+            \`;
+            
+            const cmdList = container.querySelector('#hist-commands');
+            const clipList = container.querySelector('#hist-clipboard');
+
+            cmdList.innerHTML = commandHistory.length ? '' : '<div style="opacity: 0.5; padding: 10px; text-align: center; font-size: 11px;">No command history</div>';
+            commandHistory.forEach(cmd => {
+                const el = document.createElement('div');
+                el.className = 'history-item';
+                if (settings.executionMode === 'locked') el.style.opacity = '0.6';
+                
+                const textEl = document.createElement('span');
+                textEl.className = 'history-item-text';
+                textEl.textContent = cmd;
+                textEl.title = cmd;
+                el.appendChild(textEl);
+
+                // Copy button
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'history-copy-btn';
+                copyBtn.innerHTML = '📋';
+                copyBtn.title = 'Copy to clipboard';
+                copyBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(cmd);
+                    copyBtn.innerHTML = '✓';
+                    setTimeout(() => { copyBtn.innerHTML = '📋'; }, 1000);
+                };
+                el.appendChild(copyBtn);
+
+                el.onclick = () => {
+                    if (settings.executionMode === 'locked') {
+                        vscode.postMessage({ type: 'showInfo', message: 'Execution is locked 🔒' });
+                        return;
+                    }
+                    vscode.postMessage({ type: 'executeCommand', command: cmd });
+                };
+                cmdList.appendChild(el);
+            });
+
+            clipList.innerHTML = clipboardHistory.length ? '' : '<div style="opacity: 0.5; padding: 10px; text-align: center; font-size: 11px;">No clipboard history</div>';
+            clipboardHistory.forEach(text => {
+                const el = document.createElement('div');
+                el.className = 'history-item';
+                
+                const textEl = document.createElement('span');
+                textEl.className = 'history-item-text';
+                textEl.textContent = text.substring(0, 100) + (text.length > 100 ? '...' : '');
+                textEl.title = text;
+                el.appendChild(textEl);
+
+                const actionsEl = document.createElement('div');
+                actionsEl.className = 'history-item-actions';
+                
+                const insertBtn = document.createElement('button');
+                insertBtn.className = 'history-action-btn' + (settings.executionMode === 'locked' ? ' disabled' : '');
+                insertBtn.innerHTML = '📥';
+                insertBtn.title = 'Insert into ' + (settings.executionMode === 'editor' ? 'Editor' : 'Terminal');
+                insertBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (settings.executionMode === 'locked') {
+                        vscode.postMessage({ type: 'showInfo', message: 'Execution is locked 🔒' });
+                        return;
+                    }
+                    vscode.postMessage({ type: 'executeCommand', command: text });
+                };
+                actionsEl.appendChild(insertBtn);
+                el.appendChild(actionsEl);
+
+                el.onclick = () => {
+                    navigator.clipboard.writeText(text);
+                    el.classList.add('copied');
+                    const original = textEl.textContent;
+                    textEl.textContent = '✓ Copied!';
+                    setTimeout(() => {
+                        textEl.textContent = original;
+                        el.classList.remove('copied');
+                    }, 1000);
+                };
+                clipList.appendChild(el);
+            });
+        }
+
+        function renderHistory() {
+            if (activeTabId === 'history') {
+                render();
+            }
         }
 
         function toggleReloadButton() {
@@ -1579,8 +2651,12 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         }
 
         function performSearch() {
-            const query = document.getElementById('search-input').value.toLowerCase().trim();
+            const input = document.getElementById('search-input');
+            const clearBtn = document.getElementById('search-clear-btn');
+            const query = input.value.toLowerCase().trim();
             const content = document.getElementById('content');
+            
+            if (clearBtn) clearBtn.style.display = query ? 'block' : 'none';
             
             if (!query) {
                 render();
@@ -1605,6 +2681,14 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             results.forEach(item => {
                 const el = document.createElement('div');
                 el.className = 'search-result';
+                if (item.color) {
+                    el.style.borderLeftColor = item.color;
+                    el.style.color = item.color;
+                }
+                
+                el.onmouseenter = (e) => TooltipManager.show(e, item);
+                el.onmousemove = (e) => TooltipManager.move(e);
+                el.onmouseleave = () => TooltipManager.hide();
                 
                 const icon = item.type === 'tab' ? '📑' : item.type === 'folder' ? '📁' : '📄';
                 const path = getItemPath(item);
@@ -1619,6 +2703,15 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             });
         }
 
+        function clearSearch() {
+            const input = document.getElementById('search-input');
+            if (input) {
+                input.value = '';
+                performSearch();
+                input.focus();
+            }
+        }
+
         function highlightMatch(text, query) {
             if (!text) return '';
             const idx = text.toLowerCase().indexOf(query);
@@ -1631,7 +2724,11 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         function getItemPath(item) {
             const parts = [];
             let current = item;
+            const visited = new Set();
             while (current.parentId) {
+                if (visited.has(current.id)) break;
+                visited.add(current.id);
+                
                 const parent = items.find(i => i.id === current.parentId);
                 if (parent) {
                     parts.unshift(parent.name);
@@ -1652,7 +2749,11 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             } else if (item.parentId) {
                 // Find the root tab
                 let parent = items.find(i => i.id === item.parentId);
+                const visited = new Set();
                 while (parent && parent.type !== 'tab') {
+                    if (visited.has(parent.id)) break;
+                    visited.add(parent.id);
+                    
                     if (parent.type === 'folder') parent.expanded = true;
                     parent = items.find(i => i.id === parent.parentId);
                 }
@@ -1663,7 +2764,11 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                 }
                 // Expand any parent folders
                 let p = items.find(i => i.id === item.parentId);
+                const visited2 = new Set();
                 while (p) {
+                    if (visited2.has(p.id)) break;
+                    visited2.add(p.id);
+                    
                     if (p.type === 'folder') p.expanded = true;
                     p = items.find(i => i.id === p.parentId);
                 }
@@ -1686,16 +2791,62 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             }
         }
 
-        // Responsive toolbar - switch to horizontal when not enough vertical space
+        const TooltipManager = {
+            el: null,
+            init() {
+                this.el = document.getElementById('rich-tooltip');
+            },
+            show(e, item) {
+                if (!settings.enableRichTooltips) return;
+                if (!this.el) this.init();
+                if (!item.description && !item.command) return;
+
+                let html = '';
+                if (item.description) {
+                    html += '<div class="tooltip-section">' +
+                        '<div class="tooltip-label">Description</div>' +
+                        '<div class="tooltip-value">' + item.description + '</div>' +
+                    '</div>';
+                }
+                if (item.command) {
+                    html += '<div class="tooltip-section">' +
+                        '<div class="tooltip-label">Command</div>' +
+                        '<div class="tooltip-value tooltip-command">' + item.command + '</div>' +
+                    '</div>';
+                }
+
+                this.el.innerHTML = html;
+                this.el.style.display = 'block';
+                this.move(e);
+            },
+            move(e) {
+                if (!this.el) return;
+                const x = e.clientX + 15;
+                const y = e.clientY + 15;
+
+                // Keep inside viewport
+                const rect = this.el.getBoundingClientRect();
+                const maxX = window.innerWidth - rect.width - 20;
+                const maxY = window.innerHeight - rect.height - 20;
+
+                this.el.style.left = Math.min(x, maxX) + 'px';
+                this.el.style.top = Math.min(y, maxY) + 'px';
+            },
+            hide() {
+                if (this.el) this.el.style.display = 'none';
+            }
+        };
+
+// Responsive toolbar - switch to horizontal when not enough vertical space
         function checkToolbarLayout() {
             const sidebar = document.querySelector('.sidebar');
             if (!sidebar) return;
-            
+
             const buttons = sidebar.querySelectorAll('.side-btn');
             const visibleButtons = Array.from(buttons).filter(btn => btn.style.display !== 'none');
             const buttonHeight = 44; // button height + gap
             const minRequiredHeight = visibleButtons.length * buttonHeight + 20; // padding
-            
+
             if (window.innerHeight < minRequiredHeight) {
                 document.body.classList.add('horizontal-toolbar');
             } else {
@@ -1703,11 +2854,11 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             }
         }
 
-        // Check on load and resize
-        window.addEventListener('resize', checkToolbarLayout);
-        checkToolbarLayout();
-    </script>
-</body>
-</html>`;
+// Check on load and resize
+window.addEventListener('resize', checkToolbarLayout);
+checkToolbarLayout();
+</script>
+    </body>
+    </html>`;
     }
 }

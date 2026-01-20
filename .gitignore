@@ -9,4 +9,4 @@ dist
 # VS Code internal storage for this extension if any
 .vscode
 # User config file if placed in project root
-acidsnip-config.json
+

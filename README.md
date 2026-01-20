@@ -1,49 +1,78 @@
-# AcidSnip
+# AcidSnip 🚀
 
-**AcidSnip** is a powerful extension for VS Code designed to boost your productivity. It allows you to store, organize, and execute your recurring terminal commands through a modern, customizable, and highly interactive interface.
+**AcidSnip** is a premium VS Code extension designed to revolutionize your terminal workflow. It provides a modern, highly interactive interface to store, organize, and execute your recurring commands with unparalleled speed and style.
 
-## 🚀 Advanced Features
+---
 
-*   **Modern Webview UI**: A fluid and responsive interface with horizontal tabs and a dynamic sidebar.
-*   **Smart Snippets**: Create snippets with dynamic arguments using `{{arg$1:label}}` syntax. It prompts you for values before execution!
-*   **Intelligent Search**: Quickly find any snippet, folder, or tab across your entire collection with real-time highlighting.
-*   **Folder Support**: Organize your snippets into nested folders. Delete folders while keeping their contents if needed.
-*   **Drag & Drop Everything**: Reorganize snippets, folders, and tabs with a simple drag and drop interface.
-*   **External Config Storage**: Store your snippets and settings in an external JSON file for easy portability, backup, and sharing.
-*   **Responsive Sidebar**: The toolbar automatically switches from a vertical sidebar to a horizontal bottom bar when vertical space is limited.
-*   **Dynamic Version Checker**: Automatically detects the local version of your project (package.json, Cargo.toml, etc.) and compares it with the latest GitHub release.
-*   **HTML Color Picker**: Fully customize the look of your tabs, folders, and snippets with a built-in color picker.
-*   **Emoji Picker**: Integrated emoji selector with search to give style and personality to your commands.
-*   **GitHub Repo Downloader**: Browse and clone public repositories from any GitHub user directly into your workspace with a single click.
-*   **Quick Actions**:
-    *   **Reload Extensions**: A dedicated button to quickly reload all VS Code extensions.
-    *   **CD to Explorer Selection**: Instantly change your terminal directory to the folder or file selected in the VS Code explorer.
-    *   **GitHub Integration**: Set a default username to quickly access your favorite repositories.
-*   **Safety First**: Optional "Confirm before delete" setting to prevent accidental data loss.
+## ✨ Key Features
 
-## 🛠️ Installation
+### 📑 Smart Tab System (New!)
+*   **Overflow Menu**: Automatically detects when tabs run out of space and provides a sleek chevron menu (⌄) to access hidden tabs.
+*   **Drag & Drop Magic**:
+    *   **Auto-Open**: Drag an item over a tab (or a hidden tab in the overflow menu) to instantly switch to it.
+    *   **Folder Expansion**: Hover over a collapsed folder while dragging to automatically pop it open.
+    *   **Smart Focus**: Dropping an item onto a hidden tab scrolls it into view so you never lose track.
+*   **Discrete Scrollbar**: A subtle horizontal scrollbar is available for manual navigation.
 
-1.  Open **VS Code**.
-2.  Go to the **Extensions** view (`Ctrl+Shift+X`).
-3.  Search for **AcidSnip** or install via a `.vsix` file.
+### 🕒 Integrated History & Clipboard
+*   **Native History Tab**: Access your history directly as a dedicated tab in the main UI.
+*   **Command Tracking**: Automatically stores your last 20 executed commands.
+*   **Clipboard Monitoring**: Intelligently tracks your last 20 clipboard entries.
+*   **Interactive Actions**:
+    *   **📋 Quick Copy**: Hover over any command history item to reveal a discrete copy button.
+    *   **📥 Direct Insert**: Send clipboard content directly to your terminal or editor.
+    *   **Smart Toggle**: Click the history icon (🕒) again to instantly close it and return to your previous tab.
+
+### ⚙️ Refined UI & Settings
+*   **Anchored Controls**:
+    *   **Execution Mode (💻/🔒)**: Fixed to the far left for quick access.
+    *   **Settings (⚙️)**: Fixed to the far right, ensuring it's always visible.
+*   **Optimized Settings Menu**:
+    *   **Tabbed Interface**: Clean separation between Display and Config settings.
+    *   **Auto-Save**: Changes are saved automatically when you close the menu.
+    *   **Compact Design**: Perfectly sized for sidebars.
+
+### ⚡ Smart Snippets & Organization
+*   **Dynamic Arguments**: Use `{{arg$1:label}}` syntax to create interactive snippets.
+*   **Deep Organization**: Nested **Folders**, **Tabs**, and **Separators**.
+*   **Visual Customization**:
+    *   **HTML Color Picker**: Color-code your tabs and folders.
+    *   **Emoji Picker**: Find the perfect icon for your commands.
+
+### 🐙 GitHub Repository Downloader
+*   **Direct Integration**: Browse public repositories from any GitHub user.
+*   **One-Click Clone**: Instantly clone repositories into your workspace.
+*   **Smart Path Selection**: Reuses your explorer selection logic for the target directory.
+
+### 🔍 Intelligent Search
+*   **Real-Time Filtering**: Find snippets instantly as you type.
+*   **Visual Highlighting**: Search terms are highlighted for quick identification.
+
+### 🛠️ Advanced Utilities
+*   **CD to Explorer Selection**: Sync your terminal directory with your file selection.
+*   **Reload Extensions**: Quickly refresh your VS Code environment.
+*   **Version Checker**: Compare your local version with the latest GitHub release.
+*   **External Config**: Portable JSON configuration.
+
+---
 
 ## 📖 How to Use
 
 1.  **Open AcidSnip**: Click the terminal icon in the Activity Bar.
-2.  **Add Elements**: Use the sidebar buttons to add a Snippet, Smart Snippet, Folder, Tab, or Separator.
-3.  **Search**: Click the 🔍 icon or use the search bar to find your commands instantly.
-4.  **Customize**: Right-click any element to change its color, edit its properties, or delete it.
-5.  **Organize**: Drag snippets onto tabs to move them, or drag them within the list to reorder.
-6.  **Execute**: Simply click a snippet to run its command in the terminal. If it's a Smart Snippet, fill in the requested arguments first.
-7.  **GitHub Downloader**: Click the 🐙 icon to browse and clone repositories from any GitHub user.
-8.  **Settings**: Click the ⚙️ icon to manage your configuration file, export/import data, and toggle advanced UI features like the GitHub button or Reload button.
+2.  **Organize**: Use the sidebar buttons to add Snippets, Folders, Tabs, or Separators.
+3.  **Drag & Drop**: Move items freely. Hover over folders to expand them, or drag to the overflow menu to reach hidden tabs.
+4.  **Execute**: Click a snippet to run it. Use **Locked Mode (🔒)** to prevent accidents.
+5.  **History**: Click the 🕒 icon to view history. Click it again to close.
+6.  **Settings**: Click the ⚙️ icon on the right to customize your experience.
+
+---
 
 ## ⚙️ Technical Specifications
 
 *   **Engine**: Built with `WebviewViewProvider` for a premium, custom UI experience.
-*   **Storage**: Primary storage in external JSON files with `globalState` fallback.
-*   **Design**: Fully theme-aware, using VS Code CSS variables to match your favorite theme perfectly.
-*   **Responsive**: Adaptive layout for small sidebars or narrow windows.
+*   **Storage**: External JSON files with `globalState` fallback.
+*   **Design**: Fully theme-aware, using VS Code CSS variables.
+*   **Responsive**: Adaptive layout with smart overflow handling.
 
 ---
 
