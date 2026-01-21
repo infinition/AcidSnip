@@ -728,6 +728,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/@vscode/codicons/dist/codicon.css" rel="stylesheet" />
     <title>AcidSnip</title>
     <style>
         body {
@@ -977,19 +978,65 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .modal { background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-widget-border); padding: 15px; border-radius: 4px; width: 90%; max-width: 300px; max-height: calc(100vh - 20px); overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); margin: auto; }
         .modal h3 { margin-top: 0; font-size: 14px; }
         .modal label { display: block; font-size: 11px; margin-bottom: 4px; opacity: 0.8; }
-        .modal input, .modal textarea { width: 100%; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); padding: 5px; margin-bottom: 10px; border-radius: 2px; box-sizing: border-box; font-family: inherit; }
+        .modal input, .modal textarea { width: 100%; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); padding: 5px 30px 5px 8px; margin-bottom: 0; border-radius: 2px; box-sizing: border-box; font-family: inherit; }
         .modal input[type="color"] { width: 50px; height: 30px; padding: 0; border: none; cursor: pointer; }
         .modal textarea { height: 60px; resize: vertical; }
         .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; }
         .modal-btn { padding: 4px 12px; cursor: pointer; border-radius: 2px; border: none; background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
-        .modal-btn.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
-        .emoji-picker-container { position: relative; margin-bottom: 10px; }
-        .emoji-picker-btn { cursor: pointer; font-size: 18px; padding: 2px; }
-        .emoji-picker { position: absolute; bottom: 30px; left: 0; background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-widget-border); border-radius: 4px; display: none; flex-direction: column; width: 200px; height: 250px; z-index: 110; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .emoji-search { padding: 5px; border-bottom: 1px solid var(--vscode-widget-border); }
+        .emoji-picker-container { position: relative; margin-bottom: 10px; display: flex; align-items: center; }
+        .emoji-picker-btn { 
+            position: absolute; right: 8px; cursor: pointer; font-size: 16px; 
+            opacity: 0.6; transition: opacity 0.2s; z-index: 5;
+            user-select: none;
+        }
+        .emoji-picker-btn:hover { opacity: 1; }
+        .emoji-picker { 
+            position: fixed; 
+            background: var(--vscode-editorWidget-background); 
+            border: 1px solid var(--vscode-widget-border); border-radius: 4px; 
+            display: none; flex-direction: column; width: 240px; height: 300px; 
+            z-index: 5000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); 
+            opacity: 0; transform: translateY(10px);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .emoji-picker.active {
+            display: flex; opacity: 1; transform: translateY(0);
+        }
+        .emoji-picker.compact {
+            flex-direction: row; width: 350px; height: 200px;
+        }
+        .emoji-picker-tabs {
+            display: flex; border-bottom: 1px solid var(--vscode-widget-border);
+            background: var(--vscode-sideBarSectionHeader-background);
+        }
+        .emoji-picker.compact .emoji-picker-tabs {
+            flex-direction: column; border-bottom: none; border-right: 1px solid var(--vscode-widget-border);
+            width: 60px;
+        }
+        .emoji-picker-tab {
+            flex: 1; padding: 8px; text-align: center; cursor: pointer;
+            font-size: 11px; opacity: 0.6; border-bottom: 2px solid transparent;
+        }
+        .emoji-picker.compact .emoji-picker-tab {
+            border-bottom: none; border-left: 2px solid transparent;
+        }
+        .emoji-picker-tab.active {
+            opacity: 1; border-bottom-color: var(--vscode-activityBarBadge-background);
+            font-weight: bold;
+        }
+        .emoji-picker.compact .emoji-picker-tab.active {
+            border-bottom-color: transparent; border-left-color: var(--vscode-activityBarBadge-background);
+        }
+        .emoji-picker-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .emoji-search { padding: 8px; border-bottom: 1px solid var(--vscode-widget-border); }
+        .emoji-search input { margin-bottom: 0 !important; font-size: 12px; padding: 4px 8px !important; }
         .emoji-list { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(5, 1fr); padding: 5px; gap: 5px; }
-        .emoji-item { cursor: pointer; text-align: center; font-size: 20px; padding: 2px; border-radius: 4px; }
+        .emoji-item { 
+            cursor: pointer; text-align: center; font-size: 18px; padding: 6px; 
+            border-radius: 4px; transition: background 0.1s; display: flex; align-items: center; justify-content: center;
+        }
         .emoji-item:hover { background: var(--vscode-list-hoverBackground); }
+        .emoji-item i { font-size: 16px; }
         .context-menu { position: fixed; background: var(--vscode-menu-background); color: var(--vscode-menu-foreground); border: 1px solid var(--vscode-menu-border); box-shadow: 0 2px 8px rgba(0,0,0,0.5); z-index: 200; display: none; flex-direction: column; min-width: 120px; border-radius: 4px; padding: 4px 0; }
         .context-menu-item { padding: 6px 12px; cursor: pointer; font-size: 12px; }
         .context-menu-item:hover { background: var(--vscode-menu-selectionBackground); color: var(--vscode-menu-selectionForeground); }
@@ -1005,6 +1052,30 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .toggle-switch::after { content: ''; position: absolute; width: 16px; height: 16px; background: var(--vscode-foreground); border-radius: 50%; top: 2px; left: 2px; transition: left 0.2s; }
         .toggle-switch.active::after { left: 18px; }
         .path-display { font-size: 11px; opacity: 0.7; word-break: break-all; padding: 5px; background: var(--vscode-input-background); border-radius: 2px; margin-top: 5px; }
+        
+        .modal-preview-label {
+            font-size: 10px;
+            opacity: 0.6;
+            margin-top: 8px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .modal-preview {
+            padding: 8px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .modal-preview i.codicon {
+            font-size: 16px;
+        }
         
         /* Settings Tabs */
         .settings-tabs { display: flex; border-bottom: 1px solid var(--vscode-widget-border); margin-bottom: 15px; gap: 10px; }
@@ -1628,7 +1699,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                     hasHiddenTabs = true;
                     const item = document.createElement('div');
                     item.className = 'overflow-item' + (tab.id === activeTabId ? ' active' : '');
-                    item.innerHTML = tab.name;
+                    item.innerHTML = parseIcons(tab.name);
                     if (tab.color) item.style.color = tab.color;
                     
                     item.onclick = () => {
@@ -1725,6 +1796,16 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
 
         function save() { vscode.postMessage({ type: 'saveItems', items }); }
 
+        function parseIcons(text) {
+            if (!text) return '';
+            // Replace $(icon-name) with codicon. 
+            // We strip HTML tags from the name in case highlightMatch inserted some.
+            return text.replace(/\\\$\\(([^)]+)\\)/g, (match, name) => {
+                const cleanName = name.replace(/<[^>]*>/g, '');
+                return \`<i class="codicon codicon-\${cleanName}"></i>\`;
+            });
+        }
+
         function render() {
             const tabsContainer = document.getElementById('tabs-container');
             const content = document.getElementById('content');
@@ -1769,7 +1850,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             tabs.forEach(tab => {
                 const el = document.createElement('div');
                 el.className = 'tab' + (tab.id === activeTabId ? ' active' : '');
-                el.innerHTML = tab.name;
+                el.innerHTML = parseIcons(tab.name);
                 el.ondblclick = (e) => { e.stopPropagation(); startInlineEdit(el, tab); };
                 
                 if (tab.color) {
@@ -1902,7 +1983,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                     
                     header.innerHTML = '<div class="drag-handle" draggable="true">⠿</div>' +
                         '<div class="folder-toggle">▶</div>' +
-                        '<div class="snippet-name">📁 ' + item.name + '</div>' +
+                        '<div class="snippet-name">📁 ' + parseIcons(item.name) + '</div>' +
                         '<div class="actions">' +
                             '<button class="action-btn" onclick="event.stopPropagation(); editItem(\\'' + item.id + '\\')">✎</button>' +
                             '<button class="action-btn" onclick="event.stopPropagation(); deleteItem(\\'' + item.id + '\\')">🗑</button>' +
@@ -1950,7 +2031,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                     const isSmart = item.command && item.command.includes('{{arg$');
                     
                     el.innerHTML = '<div class="drag-handle" draggable="true">⠿</div>' +
-                        '<div class="snippet-name">' + item.name + (isSmart ? '<span class="smart-badge" title="Smart Snippet">⚡</span>' : '') + '</div>' +
+                        '<div class="snippet-name">' + parseIcons(item.name) + (isSmart ? '<span class="smart-badge" title="Smart Snippet">⚡</span>' : '') + '</div>' +
                         '<div class="snippet-command">' + (item.command || '') + '</div>' +
                         '<div class="actions">' +
                             '<button class="action-btn" onclick="event.stopPropagation(); editItem(\\'' + item.id + '\\')">✎</button>' +
@@ -2198,15 +2279,30 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                 input.value = f.value || '';
                 input.placeholder = f.placeholder || '';
                 
+                const previewLabel = document.createElement('div');
+                previewLabel.className = 'modal-preview-label';
+                previewLabel.innerText = 'Preview';
+                const preview = document.createElement('div');
+                preview.className = 'modal-preview';
+                preview.id = 'modal-preview-' + f.id;
+                
+                const updatePreview = () => {
+                    preview.innerHTML = parseIcons(input.value);
+                };
+                input.oninput = updatePreview;
+                updatePreview();
+                
                 const emojiBtn = document.createElement('span');
                 emojiBtn.className = 'emoji-picker-btn';
                 emojiBtn.innerText = '😀';
-                emojiBtn.onclick = () => toggleEmojiPicker(input.id);
+                emojiBtn.onclick = (e) => { e.stopPropagation(); toggleEmojiPicker(e, input.id); };
                 
                 inputContainer.appendChild(input);
                 inputContainer.appendChild(emojiBtn);
                 fieldsContainer.appendChild(label);
                 fieldsContainer.appendChild(inputContainer);
+                fieldsContainer.appendChild(previewLabel);
+                fieldsContainer.appendChild(preview);
             });
             document.getElementById('modal-overlay').style.display = 'flex';
             currentModalCallback = (data) => {
@@ -2220,145 +2316,244 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
         function saveModal() { if (currentModalCallback) currentModalCallback(); }
 
-        function toggleEmojiPicker(inputId) {
+        let currentEmojiTab = 'emojis';
+        function toggleEmojiPicker(e, inputId) {
+            const btn = e.currentTarget;
             let picker = document.getElementById('emoji-picker');
+            
             if (!picker) {
                 picker = document.createElement('div');
                 picker.id = 'emoji-picker';
                 picker.className = 'emoji-picker';
-                picker.innerHTML = '<div class="emoji-search"><input type="text" placeholder="Search..." id="emoji-search-input"></div><div class="emoji-list" id="emoji-list"></div>';
+                picker.innerHTML = '<div class="emoji-picker-tabs">' +
+                        '<div class="emoji-picker-tab active" data-tab="emojis">Emojis</div>' +
+                        '<div class="emoji-picker-tab" data-tab="icons">Icons</div>' +
+                    '</div>' +
+                    '<div class="emoji-picker-content">' +
+                        '<div class="emoji-search"><input type="text" placeholder="Search..." id="emoji-search-input"></div>' +
+                        '<div class="emoji-list" id="emoji-list"></div>' +
+                    '</div>';
                 document.body.appendChild(picker);
-                const emojis = ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾'];
+                
+                const emojis = ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾','🔥','✨','🚀','⭐','✅','❌','⚠️','💡','⚙️','📂','📄','📑','⚡','🐙','🦀','🐍','🟢','🌐','📊','🤖','☁️','☸️','🗄️','🧩'];
+                const icons = ['terminal','git-commit','repo','package','code','beaker','bug','settings','search','folder','file','history','add','edit','trash','paintcan','star-full','check','error','warning','lightbulb','gear','github','rocket','zap','graph','database','cloud','extensions','symbol-method','symbol-function','symbol-variable','symbol-constant','symbol-property','symbol-field','symbol-class','symbol-interface','symbol-module','symbol-namespace','symbol-package','symbol-folder','symbol-file','symbol-enumerator','symbol-enum','symbol-keyword','symbol-color','symbol-unit','symbol-value','symbol-operator','symbol-type-parameter','symbol-snippet','symbol-text','symbol-ruler','symbol-event','symbol-key','symbol-null','symbol-boolean','symbol-number','symbol-string','symbol-array','symbol-object','symbol-parameter','symbol-reference','symbol-type','symbol-structure','symbol-union','symbol-type-alias','symbol-typedef','symbol-macro','symbol-label','symbol-enum-member'];
+                
                 const list = picker.querySelector('#emoji-list');
                 const search = picker.querySelector('#emoji-search-input');
-                const renderEmojis = (filter = '') => {
+                const tabs = picker.querySelectorAll('.emoji-picker-tab');
+                
+                tabs.forEach(tab => {
+                    tab.onclick = (ev) => {
+                        ev.stopPropagation();
+                        tabs.forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        currentEmojiTab = tab.dataset.tab;
+                        renderContent(search.value);
+                    };
+                });
+
+                const renderContent = (filter = '') => {
                     list.innerHTML = '';
-                    emojis.filter(e => e.includes(filter)).forEach(e => {
-                        const item = document.createElement('div');
-                        item.className = 'emoji-item';
-                        item.innerText = e;
-                        item.onclick = () => { document.getElementById(picker.dataset.targetId).value += e; picker.style.display = 'none'; };
-                        list.appendChild(item);
+                    const data = currentEmojiTab === 'emojis' ? emojis : icons;
+                    const filtered = data.filter(item => item.toLowerCase().includes(filter.toLowerCase()));
+                    
+                    filtered.forEach(item => {
+                        const el = document.createElement('div');
+                        el.className = 'emoji-item';
+                        if (currentEmojiTab === 'emojis') {
+                            el.innerText = item;
+                        } else {
+                            el.innerHTML = '<i class="codicon codicon-' + item + '"></i>';
+                            el.title = item;
+                        }
+                        
+                        el.onclick = (ev) => {
+                            ev.stopPropagation();
+                            const target = document.getElementById(picker.dataset.targetId);
+                            const start = target.selectionStart;
+                            const end = target.selectionEnd;
+                            const text = target.value;
+                            const insert = currentEmojiTab === 'emojis' ? item : '$(' + item + ')';
+                            target.value = text.substring(0, start) + insert + text.substring(end);
+                            target.selectionStart = target.selectionEnd = start + insert.length;
+                            target.focus();
+                            target.dispatchEvent(new Event('input'));
+                            picker.classList.remove('active');
+                            setTimeout(() => { if (!picker.classList.contains('active')) picker.style.display = 'none'; }, 200);
+                        };
+                        list.appendChild(el);
                     });
                 };
-                search.oninput = (e) => renderEmojis(e.target.value);
-                renderEmojis();
-            }
-            picker.dataset.targetId = inputId;
-            picker.style.display = picker.style.display === 'flex' ? 'none' : 'flex';
-            if (picker.style.display === 'flex') picker.querySelector('#emoji-search-input').focus();
-        }
-
-        function showContextMenu(x, y, id) {
-            const menu = document.getElementById('context-menu');
-            contextMenuItemId = id;
-            menu.innerHTML = '<div class="context-menu-item" onclick="editItem(\\'' + id + '\\')">Modify</div>' +
-                '<div class="context-menu-item" onclick="openColorPicker(\\'' + id + '\\')">Change Color</div>' +
-                '<div class="context-menu-item" onclick="deleteItem(\\'' + id + '\\')">Delete</div>';
-            menu.style.left = x + 'px';
-            menu.style.top = y + 'px';
-            menu.style.display = 'flex';
-        }
-
-        function openColorPicker(id) {
-            colorPickerItemId = id;
-            const item = items.find(i => i.id === id);
-            const colorInput = document.getElementById('color-input');
-            const colorPreview = document.getElementById('color-preview');
-            const recursiveRow = document.getElementById('recursive-color-row');
-            const recursiveCheck = document.getElementById('recursive-color-check');
-            
-            const currentColor = item?.color || '#ffffff';
-            colorInput.value = currentColor.startsWith('#') ? currentColor : '#ffffff';
-            colorPreview.style.backgroundColor = currentColor || 'transparent';
-            colorInput.oninput = () => { colorPreview.style.backgroundColor = colorInput.value; };
-            
-            if (recursiveRow) recursiveRow.style.display = (item && item.type === 'folder') ? 'flex' : 'none';
-            if (recursiveCheck) recursiveCheck.checked = false;
-
-            document.getElementById('context-menu').style.display = 'none';
-            document.getElementById('color-picker-overlay').style.display = 'flex';
-        }
-
-        function setPresetColor(color) {
-            const colorInput = document.getElementById('color-input');
-            const colorPreview = document.getElementById('color-preview');
-            colorInput.value = color || '#ffffff';
-            colorPreview.style.backgroundColor = color || 'transparent';
-        }
-
-        function applyColor() {
-            const item = items.find(i => i.id === colorPickerItemId);
-            if (item) {
-                const colorInput = document.getElementById('color-input');
-                const recursiveCheck = document.getElementById('recursive-color-check');
-                const newColor = colorInput.value === '#ffffff' ? '' : colorInput.value;
                 
-                item.color = newColor;
+                search.oninput = (e) => renderContent(e.target.value);
+                renderContent();
                 
-                if (item.type === 'folder' && recursiveCheck && recursiveCheck.checked) {
-                    applyColorRecursively(item.id, newColor);
-                }
-                
-                save(); render();
-            }
-            closeColorPicker();
-        }
-
-        function applyColorRecursively(parentId, color) {
-            items.forEach(i => {
-                if (i.parentId === parentId) {
-                    i.color = color;
-                    if (i.type === 'folder') {
-                        applyColorRecursively(i.id, color);
+                document.addEventListener('mousedown', (e) => {
+                    if (picker.classList.contains('active') && !picker.contains(e.target) && !e.target.classList.contains('emoji-picker-btn')) {
+                        picker.classList.remove('active');
+                        setTimeout(() => { if (!picker.classList.contains('active')) picker.style.display = 'none'; }, 200);
                     }
-                }
-            });
-        }
-
-        function closeColorPicker() {
-            document.getElementById('color-picker-overlay').style.display = 'none';
-            colorPickerItemId = null;
-        }
-
-        function openSettings() {
-            const overlay = document.getElementById('settings-overlay');
-            if (overlay.style.display === 'flex') {
-                closeSettings();
+                });
+            }
+            
+            picker.dataset.targetId = inputId;
+            const isVisible = picker.classList.contains('active');
+            
+            if (isVisible) {
+                picker.classList.remove('active');
+                setTimeout(() => { if (!picker.classList.contains('active')) picker.style.display = 'none'; }, 200);
             } else {
-                overlay.style.display = 'flex';
-                switchSettingsTab('display');
-                updateSettingsUI();
+                const rect = btn.getBoundingClientRect();
+                
+                if (window.innerHeight < 400) {
+                    picker.classList.add('compact');
+                } else {
+                    picker.classList.remove('compact');
+                }
+
+                picker.style.display = 'flex';
+                picker.offsetHeight; // force reflow
+                picker.classList.add('active');
+                
+                picker.style.top = (rect.top - picker.offsetHeight - 5) + 'px';
+                picker.style.left = (rect.right - picker.offsetWidth) + 'px';
+                
+                const pickerRect = picker.getBoundingClientRect();
+                if (pickerRect.left < 0) picker.style.left = '5px';
+                if (pickerRect.right > window.innerWidth) picker.style.left = (window.innerWidth - picker.offsetWidth - 5) + 'px';
+                if (pickerRect.top < 0) picker.style.top = (rect.bottom + 5) + 'px';
+                if (pickerRect.bottom > window.innerHeight) picker.style.top = (rect.top - picker.offsetHeight - 5) + 'px';
+                
+                const finalRect = picker.getBoundingClientRect();
+                if (finalRect.bottom > window.innerHeight) {
+                    picker.style.top = (window.innerHeight - picker.offsetHeight - 5) + 'px';
+                }
+                
+                const searchInput = picker.querySelector('#emoji-search-input');
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input'));
+                setTimeout(() => searchInput.focus(), 10);
             }
         }
 
-        function switchSettingsTab(tab) {
-            document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.settings-content').forEach(c => c.classList.remove('active'));
-            
-            document.getElementById('tab-' + tab).classList.add('active');
-            document.getElementById('settings-' + tab).classList.add('active');
+window.addEventListener('resize', () => {
+    const picker = document.getElementById('emoji-picker');
+    if (picker && picker.classList.contains('active')) {
+        picker.classList.remove('active');
+        picker.style.display = 'none';
+    }
+});
+
+function showContextMenu(x, y, id) {
+    const menu = document.getElementById('context-menu');
+    contextMenuItemId = id;
+    menu.innerHTML = '<div class="context-menu-item" onclick="editItem(\\'' + id + '\\')">Modify</div>' +
+        '<div class="context-menu-item" onclick="openColorPicker(\\'' + id + '\\')">Change Color</div>' +
+            '<div class="context-menu-item" onclick="deleteItem(\\'' + id + '\\')">Delete</div>';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    menu.style.display = 'flex';
+}
+
+function openColorPicker(id) {
+    colorPickerItemId = id;
+    const item = items.find(i => i.id === id);
+    const colorInput = document.getElementById('color-input');
+    const colorPreview = document.getElementById('color-preview');
+    const recursiveRow = document.getElementById('recursive-color-row');
+    const recursiveCheck = document.getElementById('recursive-color-check');
+
+    const currentColor = item?.color || '#ffffff';
+    colorInput.value = currentColor.startsWith('#') ? currentColor : '#ffffff';
+    colorPreview.style.backgroundColor = currentColor || 'transparent';
+    colorInput.oninput = () => { colorPreview.style.backgroundColor = colorInput.value; };
+
+    if (recursiveRow) recursiveRow.style.display = (item && item.type === 'folder') ? 'flex' : 'none';
+    if (recursiveCheck) recursiveCheck.checked = false;
+
+    document.getElementById('context-menu').style.display = 'none';
+    document.getElementById('color-picker-overlay').style.display = 'flex';
+}
+
+function setPresetColor(color) {
+    const colorInput = document.getElementById('color-input');
+    const colorPreview = document.getElementById('color-preview');
+    colorInput.value = color || '#ffffff';
+    colorPreview.style.backgroundColor = color || 'transparent';
+}
+
+function applyColor() {
+    const item = items.find(i => i.id === colorPickerItemId);
+    if (item) {
+        const colorInput = document.getElementById('color-input');
+        const recursiveCheck = document.getElementById('recursive-color-check');
+        const newColor = colorInput.value === '#ffffff' ? '' : colorInput.value;
+
+        item.color = newColor;
+
+        if (item.type === 'folder' && recursiveCheck && recursiveCheck.checked) {
+            applyColorRecursively(item.id, newColor);
         }
 
-        function closeSettings() {
-            document.getElementById('settings-overlay').style.display = 'none';
+        save(); render();
+    }
+    closeColorPicker();
+}
+
+function applyColorRecursively(parentId, color) {
+    items.forEach(i => {
+        if (i.parentId === parentId) {
+            i.color = color;
+            if (i.type === 'folder') {
+                applyColorRecursively(i.id, color);
+            }
         }
+    });
+}
 
-        function updateHistoryLimits() {
-            settings.commandHistoryLimit = parseInt(document.getElementById('cmd-limit-input').value) || 20;
-            settings.clipboardHistoryLimit = parseInt(document.getElementById('clip-limit-input').value) || 20;
-            vscode.postMessage({ type: 'saveSettings', settings });
-        }
+function closeColorPicker() {
+    document.getElementById('color-picker-overlay').style.display = 'none';
+    colorPickerItemId = null;
+}
+
+function openSettings() {
+    const overlay = document.getElementById('settings-overlay');
+    if (overlay.style.display === 'flex') {
+        closeSettings();
+    } else {
+        overlay.style.display = 'flex';
+        switchSettingsTab('display');
+        updateSettingsUI();
+    }
+}
+
+function switchSettingsTab(tab) {
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.settings-content').forEach(c => c.classList.remove('active'));
+
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.getElementById('settings-' + tab).classList.add('active');
+}
+
+function closeSettings() {
+    document.getElementById('settings-overlay').style.display = 'none';
+}
+
+function updateHistoryLimits() {
+    settings.commandHistoryLimit = parseInt(document.getElementById('cmd-limit-input').value) || 20;
+    settings.clipboardHistoryLimit = parseInt(document.getElementById('clip-limit-input').value) || 20;
+    vscode.postMessage({ type: 'saveSettings', settings });
+}
 
 
-        let activeHistoryTab = 'commands';
-        function switchHistoryTab(tab) {
-            activeHistoryTab = tab;
-            render();
-        }
+let activeHistoryTab = 'commands';
+function switchHistoryTab(tab) {
+    activeHistoryTab = tab;
+    render();
+}
 
-        function renderHistoryView(container) {
-            container.innerHTML = \`
+function renderHistoryView(container) {
+    container.innerHTML = \`
                 <div class="history-view-container">
                     <div class="history-tabs">
                         <div class="history-tab \${activeHistoryTab === 'commands' ? 'active' : ''}" onclick="switchHistoryTab('commands')">Commands</div>
@@ -2695,7 +2890,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                 const highlightedName = highlightMatch(item.name, query);
                 
                 el.innerHTML = '<span>' + icon + '</span>' +
-                    '<span class="snippet-name">' + highlightedName + '</span>' +
+                    '<span class="snippet-name">' + parseIcons(highlightedName) + '</span>' +
                     (path ? '<span class="search-result-path">' + path + '</span>' : '');
                 
                 el.onclick = () => navigateToItem(item);

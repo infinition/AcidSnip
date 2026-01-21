@@ -56,6 +56,90 @@
 
 ---
 
+## 🗂️ Configuration & Storage Logic (Quick Overview)
+
+AcidSnip uses a **dual-layer configuration system** designed to be both **simple by default** and **powerful when needed**.
+
+### 🔹 Default Behavior (No File Selected)
+
+On first launch, **no configuration file is created**.
+
+* All data is stored internally using VS Code’s `globalState`
+* This includes:
+
+  * Snippets, folders, tabs, separators
+  * User settings
+* Storage is automatic, invisible, and persistent
+* No manual setup required
+
+➡️ **Just install and use — it works out of the box**
+
+---
+
+### 📁 External Config File (Optional)
+
+You can optionally choose a JSON file to store your configuration.
+
+* Open **Settings (⚙️) → Config → Select File**
+* Choose or create a file (e.g. `acidsnip-config.json`)
+* From this point on:
+
+  * The JSON file becomes the **main source of truth**
+  * All changes are saved directly to this file
+  * `globalState` is kept as a safe fallback
+
+📄 File structure:
+
+```json
+{
+  "items": [ ... ],
+  "settings": { ... }
+}
+```
+
+⚠️ Note:
+
+* The file path itself is stored internally (not inside the file)
+* History (commands & clipboard) always stays internal
+
+---
+
+### 📤 Export
+
+Creates a **portable snapshot** of your current configuration.
+
+* Does **not** change the active config file
+* Ideal for:
+
+  * Backups
+  * Sharing configs
+  * Versioning with Git
+
+---
+
+### 📥 Import
+
+Loads a configuration from a JSON file.
+
+* Replaces the current snippets & settings
+* Writes to:
+
+  * The selected config file (if one is set)
+  * Otherwise, internal storage
+
+---
+
+### 🧠 Summary
+
+* **No file selected** → internal storage (`globalState`)
+* **File selected** → external JSON file
+* **Export** → copy only
+* **Import** → overwrite current config
+
+
+---
+
+
 ## 📖 How to Use
 
 1.  **Open AcidSnip**: Click the terminal icon in the Activity Bar.

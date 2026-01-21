@@ -1,279 +1,656 @@
 {
   "items": [
     {
-      "id": "tab-web",
-      "name": "🌐 Web Dev",
+      "id": "tab-git",
+      "name": "Git & GitHub 🐙",
       "type": "tab",
-      "color": "#3b82f6"
+      "color": "#F05032"
     },
     {
-      "id": "folder-frontend",
-      "name": "🎨 Frontend",
+      "id": "folder-git-sync",
+      "name": "Sync 🔄",
       "type": "folder",
-      "color": "#ec4899",
-      "parentId": "tab-web",
-      "expanded": true
+      "parentId": "tab-git",
+      "expanded": true,
+      "color": "#F05032"
     },
     {
-      "id": "folder-react",
-      "name": "⚛️ React Studio",
+      "id": "snip-git-lazy",
+      "name": "Lazy Sync 🚀",
+      "type": "snippet",
+      "parentId": "folder-git-sync",
+      "command": "git add . && git commit -m \"{{arg$1:Message}}\" && git push",
+      "description": "Add, commit, and push"
+    },
+    {
+      "id": "snip-git-pull",
+      "name": "Pull Rebase",
+      "type": "snippet",
+      "parentId": "folder-git-sync",
+      "command": "git pull --rebase",
+      "description": "Pull with rebase"
+    },
+    {
+      "id": "snip-git-stash",
+      "name": "Stash",
+      "type": "snippet",
+      "parentId": "folder-git-sync",
+      "command": "git stash",
+      "description": "Stash changes"
+    },
+    {
+      "id": "snip-git-pop",
+      "name": "Stash Pop",
+      "type": "snippet",
+      "parentId": "folder-git-sync",
+      "command": "git stash pop",
+      "description": "Apply stashed changes"
+    },
+    {
+      "id": "folder-git-adv",
+      "name": "Advanced 🧠",
       "type": "folder",
-      "color": "#61dafb",
-      "parentId": "folder-frontend",
-      "expanded": true
+      "parentId": "tab-git",
+      "expanded": true,
+      "color": "#E94E32"
     },
     {
-      "id": "snip-npm-start",
-      "name": "🚀 Start Dev Server",
-      "command": "npm start",
-      "description": "Starts the local development server for the current project.",
+      "id": "snip-git-reset-soft",
+      "name": "Soft Reset",
       "type": "snippet",
-      "parentId": "folder-react"
+      "parentId": "folder-git-adv",
+      "command": "git reset --soft HEAD~1",
+      "description": "Undo commit, keep changes"
     },
     {
-      "id": "snip-npm-install",
-      "name": "📦 Install Package",
-      "command": "npm install {{arg$1:package-name}}",
-      "description": "Installs a new npm package. Prompts for the package name.",
+      "id": "snip-git-reset-hard",
+      "name": "Hard Reset",
       "type": "snippet",
-      "parentId": "folder-react"
+      "parentId": "folder-git-adv",
+      "command": "git reset --hard HEAD",
+      "description": "Discard all changes"
     },
     {
-      "id": "sep-1",
-      "type": "separator",
-      "parentId": "folder-react"
-    },
-    {
-      "id": "snip-build",
-      "name": "🏗️ Build Production",
-      "command": "npm run build",
-      "description": "Generates the production build in the /dist folder.",
+      "id": "snip-git-cherry",
+      "name": "Cherry Pick",
       "type": "snippet",
-      "parentId": "folder-react"
+      "parentId": "folder-git-adv",
+      "command": "git cherry-pick {{arg$1:commit_hash}}",
+      "description": "Apply specific commit"
     },
     {
-      "id": "folder-backend",
-      "name": "⚙️ Backend",
-      "type": "folder",
-      "color": "#8b5cf6",
-      "parentId": "tab-web",
-      "expanded": true
-    },
-    {
-      "id": "snip-node-run",
-      "name": "🟢 Run Server",
-      "command": "node index.js",
-      "description": "Runs the main entry point of the Node.js application.",
+      "id": "snip-git-tag",
+      "name": "Tag Release",
       "type": "snippet",
-      "parentId": "folder-backend"
+      "parentId": "folder-git-adv",
+      "command": "git tag -a v{{arg$1:version}} -m \"Release {{arg$1:version}}\" && git push origin v{{arg$1:version}}",
+      "description": "Create and push tag"
     },
     {
       "id": "tab-rust",
-      "name": "🦀 Rust Dev",
+      "name": "Rust 🦀",
       "type": "tab",
-      "color": "#dea584"
+      "color": "#DEA584"
     },
     {
-      "id": "folder-cargo",
-      "name": "📦 Cargo Ops",
+      "id": "folder-cargo-core",
+      "name": "Core 🔨",
       "type": "folder",
-      "color": "#f97316",
       "parentId": "tab-rust",
-      "expanded": true
-    },
-    {
-      "id": "folder-cargo-build",
-      "name": "🏗️ Build Modes",
-      "type": "folder",
-      "color": "#fbbf24",
-      "parentId": "folder-cargo",
-      "expanded": true
-    },
-    {
-      "id": "snip-cargo-debug",
-      "name": "🐛 Build Debug",
-      "command": "cargo build",
-      "description": "Compiles the current package in debug mode.",
-      "type": "snippet",
-      "parentId": "folder-cargo-build"
-    },
-    {
-      "id": "snip-cargo-release",
-      "name": "🚀 Build Release",
-      "command": "cargo build --release",
-      "description": "Compiles the current package in release mode with optimizations.",
-      "type": "snippet",
-      "parentId": "folder-cargo-build"
+      "expanded": true,
+      "color": "#DEA584"
     },
     {
       "id": "snip-cargo-run",
-      "name": "🏃 Run Project",
-      "command": "cargo run",
-      "description": "Runs the binary or example of the local package.",
+      "name": "Run",
       "type": "snippet",
-      "parentId": "folder-cargo"
+      "parentId": "folder-cargo-core",
+      "command": "cargo run",
+      "description": "Run project"
     },
     {
-      "id": "snip-cargo-test",
-      "name": "🧪 Run Tests",
-      "command": "cargo test",
-      "description": "Runs the unit and integration tests.",
+      "id": "snip-cargo-build-rel",
+      "name": "Build Release",
       "type": "snippet",
-      "parentId": "folder-cargo"
+      "parentId": "folder-cargo-core",
+      "command": "cargo build --release",
+      "description": "Build optimized binary"
+    },
+    {
+      "id": "snip-cargo-check",
+      "name": "Check",
+      "type": "snippet",
+      "parentId": "folder-cargo-core",
+      "command": "cargo check",
+      "description": "Fast check"
+    },
+    {
+      "id": "folder-cargo-tools",
+      "name": "Tools 🛠️",
+      "type": "folder",
+      "parentId": "tab-rust",
+      "expanded": false,
+      "color": "#A67C52"
+    },
+    {
+      "id": "snip-cargo-clippy",
+      "name": "Clippy",
+      "type": "snippet",
+      "parentId": "folder-cargo-tools",
+      "command": "cargo clippy",
+      "description": "Lint code"
+    },
+    {
+      "id": "snip-cargo-fmt",
+      "name": "Format",
+      "type": "snippet",
+      "parentId": "folder-cargo-tools",
+      "command": "cargo fmt",
+      "description": "Format code"
+    },
+    {
+      "id": "snip-cargo-doc",
+      "name": "Docs",
+      "type": "snippet",
+      "parentId": "folder-cargo-tools",
+      "command": "cargo doc --open",
+      "description": "Generate documentation"
+    },
+    {
+      "id": "snip-cargo-install",
+      "name": "Install Crate",
+      "type": "snippet",
+      "parentId": "folder-cargo-tools",
+      "command": "cargo install {{arg$1:crate_name}}",
+      "description": "Install binary crate"
     },
     {
       "id": "tab-python",
-      "name": "🐍 Python Lab",
+      "name": "Python 🐍",
       "type": "tab",
-      "color": "#ffd43b"
+      "color": "#3776AB"
     },
     {
-      "id": "folder-venv",
-      "name": "🌐 Environment",
+      "id": "folder-py-env",
+      "name": "Env & Pkg 📦",
       "type": "folder",
-      "color": "#4b8bbe",
       "parentId": "tab-python",
-      "expanded": true
+      "expanded": true,
+      "color": "#3776AB"
     },
     {
-      "id": "snip-venv-create",
-      "name": "🛠️ Create Venv",
-      "command": "python -m venv {{arg$1:venv-name}}",
-      "description": "Creates a new virtual environment.",
+      "id": "snip-py-venv",
+      "name": "New Venv",
       "type": "snippet",
-      "parentId": "folder-venv"
+      "parentId": "folder-py-env",
+      "command": "python -m venv venv",
+      "description": "Create venv"
     },
     {
-      "id": "snip-pip-install",
-      "name": "📦 Pip Install",
-      "command": "pip install {{arg$1:package-name}}",
-      "description": "Installs a Python package using pip.",
+      "id": "snip-pip-up",
+      "name": "Upgrade Pip",
       "type": "snippet",
-      "parentId": "folder-venv"
+      "parentId": "folder-py-env",
+      "command": "python -m pip install --upgrade pip",
+      "description": "Upgrade pip"
     },
     {
-      "id": "folder-py-test",
-      "name": "🧪 Testing",
+      "id": "snip-poetry-init",
+      "name": "Poetry Init",
+      "type": "snippet",
+      "parentId": "folder-py-env",
+      "command": "poetry init",
+      "description": "Init Poetry project"
+    },
+    {
+      "id": "snip-poetry-add",
+      "name": "Poetry Add",
+      "type": "snippet",
+      "parentId": "folder-py-env",
+      "command": "poetry add {{arg$1:package}}",
+      "description": "Add dependency"
+    },
+    {
+      "id": "folder-py-qual",
+      "name": "Quality ✨",
       "type": "folder",
-      "color": "#22c55e",
       "parentId": "tab-python",
-      "expanded": true
+      "expanded": true,
+      "color": "#FFD343"
+    },
+    {
+      "id": "snip-black",
+      "name": "Black",
+      "type": "snippet",
+      "parentId": "folder-py-qual",
+      "command": "black .",
+      "description": "Format code"
+    },
+    {
+      "id": "snip-isort",
+      "name": "Isort",
+      "type": "snippet",
+      "parentId": "folder-py-qual",
+      "command": "isort .",
+      "description": "Sort imports"
+    },
+    {
+      "id": "snip-mypy",
+      "name": "Mypy",
+      "type": "snippet",
+      "parentId": "folder-py-qual",
+      "command": "mypy .",
+      "description": "Type check"
     },
     {
       "id": "snip-pytest",
-      "name": "🏃 Run Pytest",
+      "name": "Pytest",
+      "type": "snippet",
+      "parentId": "folder-py-qual",
       "command": "pytest",
-      "description": "Runs all tests found by pytest.",
-      "type": "snippet",
-      "parentId": "folder-py-test"
+      "description": "Run tests"
     },
     {
-      "id": "tab-vsce",
-      "name": "🔌 VSCE Studio",
+      "id": "tab-js",
+      "name": "JS/TS Ecosystem 🟢",
       "type": "tab",
-      "color": "#007acc"
+      "color": "#F7DF1E"
     },
     {
-      "id": "snip-vsce-package",
-      "name": "📦 Package Extension",
-      "command": "vsce package",
-      "description": "Packages the extension into a .vsix file.",
-      "type": "snippet",
-      "parentId": "tab-vsce"
-    },
-    {
-      "id": "snip-vsce-publish",
-      "name": "📤 Publish Extension",
-      "command": "vsce publish {{arg$1:version-type}}",
-      "description": "Publishes the extension to the marketplace (patch, minor, major).",
-      "type": "snippet",
-      "parentId": "tab-vsce"
-    },
-    {
-      "id": "tab-git",
-      "name": "🐙 Git Ops",
-      "type": "tab",
-      "color": "#f97316"
-    },
-    {
-      "id": "folder-git-branch",
-      "name": "🌿 Branching",
+      "id": "folder-pkg-mgr",
+      "name": "Managers 📦",
       "type": "folder",
-      "color": "#84cc16",
-      "parentId": "tab-git",
-      "expanded": false
+      "parentId": "tab-js",
+      "expanded": true,
+      "color": "#CB3837"
     },
     {
-      "id": "snip-git-checkout",
-      "name": "🔀 Checkout Branch",
-      "command": "git checkout {{arg$1:branch-name}}",
-      "description": "Switches to the specified branch.",
+      "id": "snip-yarn-add",
+      "name": "Yarn Add",
       "type": "snippet",
-      "parentId": "folder-git-branch"
+      "parentId": "folder-pkg-mgr",
+      "command": "yarn add {{arg$1:package}}",
+      "description": "Yarn install"
     },
     {
-      "id": "snip-git-new-branch",
-      "name": "✨ New Branch",
-      "command": "git checkout -b {{arg$1:new-branch-name}}",
-      "description": "Creates and switches to a new branch.",
+      "id": "snip-pnpm-add",
+      "name": "PNPM Add",
       "type": "snippet",
-      "parentId": "folder-git-branch"
+      "parentId": "folder-pkg-mgr",
+      "command": "pnpm add {{arg$1:package}}",
+      "description": "PNPM install"
     },
     {
-      "id": "snip-git-status",
-      "name": "🔍 Git Status",
-      "command": "git status",
-      "description": "Shows the working tree status.",
+      "id": "snip-bun-add",
+      "name": "Bun Add",
       "type": "snippet",
-      "parentId": "tab-git"
+      "parentId": "folder-pkg-mgr",
+      "command": "bun add {{arg$1:package}}",
+      "description": "Bun install"
     },
     {
-      "id": "snip-git-commit",
-      "name": "📝 Smart Commit",
-      "command": "git add . && git commit -m \"{{arg$1:commit-message}}\"",
-      "description": "Stages all changes and commits with a custom message.",
-      "type": "snippet",
-      "parentId": "tab-git"
+      "id": "folder-js-test",
+      "name": "Testing 🧪",
+      "type": "folder",
+      "parentId": "tab-js",
+      "expanded": false,
+      "color": "#F7DF1E"
     },
     {
-      "id": "snip-git-push",
-      "name": "📤 Push to Origin",
-      "command": "git push origin {{arg$1:branch-name}}",
-      "description": "Pushes local commits to the specified remote branch.",
+      "id": "snip-jest",
+      "name": "Jest",
       "type": "snippet",
-      "parentId": "tab-git"
+      "parentId": "folder-js-test",
+      "command": "npx jest",
+      "description": "Run Jest"
+    },
+    {
+      "id": "snip-vitest",
+      "name": "Vitest",
+      "type": "snippet",
+      "parentId": "folder-js-test",
+      "command": "npx vitest",
+      "description": "Run Vitest"
+    },
+    {
+      "id": "snip-playwright",
+      "name": "Playwright",
+      "type": "snippet",
+      "parentId": "folder-js-test",
+      "command": "npx playwright test",
+      "description": "Run E2E tests"
+    },
+    {
+      "id": "tab-web",
+      "name": "Web Dev 🌐",
+      "type": "tab",
+      "color": "#61DAFB"
+    },
+    {
+      "id": "folder-css",
+      "name": "Styling 🎨",
+      "type": "folder",
+      "parentId": "tab-web",
+      "expanded": true,
+      "color": "#38B2AC"
+    },
+    {
+      "id": "snip-tail-init",
+      "name": "Tailwind Init",
+      "type": "snippet",
+      "parentId": "folder-css",
+      "command": "npx tailwindcss init -p",
+      "description": "Init Tailwind"
+    },
+    {
+      "id": "snip-sass-watch",
+      "name": "Sass Watch",
+      "type": "snippet",
+      "parentId": "folder-css",
+      "command": "sass --watch input.scss:output.css",
+      "description": "Watch Sass"
+    },
+    {
+      "id": "folder-frameworks",
+      "name": "Frameworks ⚛️",
+      "type": "folder",
+      "parentId": "tab-web",
+      "expanded": true,
+      "color": "#61DAFB"
+    },
+    {
+      "id": "snip-astro",
+      "name": "Astro New",
+      "type": "snippet",
+      "parentId": "folder-frameworks",
+      "command": "npm create astro@latest",
+      "description": "Create Astro site"
+    },
+    {
+      "id": "snip-svelte",
+      "name": "Svelte New",
+      "type": "snippet",
+      "parentId": "folder-frameworks",
+      "command": "npm create svelte@latest {{arg$1:app_name}}",
+      "description": "Create Svelte app"
+    },
+    {
+      "id": "snip-vue",
+      "name": "Vue New",
+      "type": "snippet",
+      "parentId": "folder-frameworks",
+      "command": "npm create vue@latest",
+      "description": "Create Vue app"
+    },
+    {
+      "id": "tab-ds",
+      "name": "Data Science 📊",
+      "type": "tab",
+      "color": "#F37626"
+    },
+    {
+      "id": "folder-ds-viz",
+      "name": "Viz 📈",
+      "type": "folder",
+      "parentId": "tab-ds",
+      "expanded": true,
+      "color": "#F37626"
+    },
+    {
+      "id": "snip-ds-seaborn",
+      "name": "Install Seaborn",
+      "type": "snippet",
+      "parentId": "folder-ds-viz",
+      "command": "pip install seaborn",
+      "description": "Statistical viz"
+    },
+    {
+      "id": "snip-ds-plotly",
+      "name": "Install Plotly",
+      "type": "snippet",
+      "parentId": "folder-ds-viz",
+      "command": "pip install plotly",
+      "description": "Interactive viz"
+    },
+    {
+      "id": "snip-ds-streamlit",
+      "name": "Streamlit Run",
+      "type": "snippet",
+      "parentId": "folder-ds-viz",
+      "command": "streamlit run {{arg$1:app.py}}",
+      "description": "Run Streamlit app"
+    },
+    {
+      "id": "folder-ds-proc",
+      "name": "Processing 🔢",
+      "type": "folder",
+      "parentId": "tab-ds",
+      "expanded": true,
+      "color": "#E67E22"
+    },
+    {
+      "id": "snip-ds-dask",
+      "name": "Install Dask",
+      "type": "snippet",
+      "parentId": "folder-ds-proc",
+      "command": "pip install dask[complete]",
+      "description": "Parallel computing"
+    },
+    {
+      "id": "snip-ds-airflow",
+      "name": "Install Airflow",
+      "type": "snippet",
+      "parentId": "folder-ds-proc",
+      "command": "pip install apache-airflow",
+      "description": "Workflow orchestration"
+    },
+    {
+      "id": "tab-ai",
+      "name": "AI & ML 🤖",
+      "type": "tab",
+      "color": "#8E44AD"
+    },
+    {
+      "id": "folder-ai-dl",
+      "name": "Deep Learning 🧠",
+      "type": "folder",
+      "parentId": "tab-ai",
+      "expanded": true,
+      "color": "#8E44AD"
+    },
+    {
+      "id": "snip-ai-keras",
+      "name": "Install Keras",
+      "type": "snippet",
+      "parentId": "folder-ai-dl",
+      "command": "pip install keras",
+      "description": "High-level neural nets"
+    },
+    {
+      "id": "snip-ai-fastai",
+      "name": "Install FastAI",
+      "type": "snippet",
+      "parentId": "folder-ai-dl",
+      "command": "pip install fastai",
+      "description": "Fast deep learning"
+    },
+    {
+      "id": "folder-ai-llm",
+      "name": "LLMs 💬",
+      "type": "folder",
+      "parentId": "tab-ai",
+      "expanded": true,
+      "color": "#9B59B6"
+    },
+    {
+      "id": "snip-ai-openai",
+      "name": "OpenAI SDK",
+      "type": "snippet",
+      "parentId": "folder-ai-llm",
+      "command": "pip install openai",
+      "description": "OpenAI Python SDK"
+    },
+    {
+      "id": "snip-ai-langchain",
+      "name": "LangChain",
+      "type": "snippet",
+      "parentId": "folder-ai-llm",
+      "command": "pip install langchain",
+      "description": "LLM Framework"
+    },
+    {
+      "id": "snip-ai-ollama-pull",
+      "name": "Ollama Pull",
+      "type": "snippet",
+      "parentId": "folder-ai-llm",
+      "command": "ollama pull {{arg$1:model_name}}",
+      "description": "Download local model"
+    },
+    {
+      "id": "tab-devops",
+      "name": "DevOps ☁️",
+      "type": "tab",
+      "color": "#2496ED"
     },
     {
       "id": "folder-docker",
-      "name": "🐳 Docker",
+      "name": "Docker 🐳",
       "type": "folder",
-      "color": "#0ea5e9",
-      "expanded": false,
-      "parentId": "tab-rust"
+      "parentId": "tab-devops",
+      "expanded": true,
+      "color": "#2496ED"
     },
     {
-      "id": "snip-docker-ps",
-      "name": "📋 List Containers",
-      "command": "docker ps",
-      "description": "Lists all running Docker containers.",
+      "id": "snip-docker-build",
+      "name": "Build Image",
       "type": "snippet",
-      "parentId": "folder-docker"
+      "parentId": "folder-docker",
+      "command": "docker build -t {{arg$1:tag}} .",
+      "description": "Build Docker image"
     },
     {
       "id": "snip-docker-run",
-      "name": "🏃 Run Image",
-      "command": "docker run -d -p {{arg$1:port}}:{{arg$2:container-port}} {{arg$3:image-name}}",
-      "description": "Runs a Docker image in detached mode with port mapping.",
+      "name": "Run Container",
       "type": "snippet",
-      "parentId": "folder-docker"
+      "parentId": "folder-docker",
+      "command": "docker run -p {{arg$1:8080}}:{{arg$2:80}} {{arg$3:image}}",
+      "description": "Run container"
     },
     {
-      "id": "1768951067832",
-      "name": "dddd",
-      "command": "",
-      "description": "",
+      "id": "snip-docker-compose",
+      "name": "Compose Up",
       "type": "snippet",
-      "parentId": "tab-git"
+      "parentId": "folder-docker",
+      "command": "docker-compose up -d",
+      "description": "Start services detached"
+    },
+    {
+      "id": "snip-docker-prune",
+      "name": "Prune System",
+      "type": "snippet",
+      "parentId": "folder-docker",
+      "command": "docker system prune -a",
+      "description": "Clean up unused data"
+    },
+    {
+      "id": "folder-k8s",
+      "name": "Kubernetes ☸️",
+      "type": "folder",
+      "parentId": "tab-devops",
+      "expanded": false,
+      "color": "#326CE5"
+    },
+    {
+      "id": "snip-kubectl-pods",
+      "name": "Get Pods",
+      "type": "snippet",
+      "parentId": "folder-k8s",
+      "command": "kubectl get pods",
+      "description": "List pods"
+    },
+    {
+      "id": "snip-kubectl-logs",
+      "name": "Pod Logs",
+      "type": "snippet",
+      "parentId": "folder-k8s",
+      "command": "kubectl logs {{arg$1:pod_name}}",
+      "description": "View logs"
+    },
+    {
+      "id": "tab-db",
+      "name": "Databases 🗄️",
+      "type": "tab",
+      "color": "#336791"
+    },
+    {
+      "id": "snip-sql-psql",
+      "name": "Postgres Login",
+      "type": "snippet",
+      "parentId": "tab-db",
+      "command": "psql -U {{arg$1:user}} -d {{arg$2:db}}",
+      "description": "Connect to Postgres"
+    },
+    {
+      "id": "snip-mongo",
+      "name": "Mongo Shell",
+      "type": "snippet",
+      "parentId": "tab-db",
+      "command": "mongosh",
+      "description": "Connect to MongoDB"
+    },
+    {
+      "id": "snip-redis",
+      "name": "Redis CLI",
+      "type": "snippet",
+      "parentId": "tab-db",
+      "command": "redis-cli",
+      "description": "Connect to Redis"
+    },
+    {
+      "id": "snip-sqlite",
+      "name": "SQLite",
+      "type": "snippet",
+      "parentId": "tab-db",
+      "command": "sqlite3 {{arg$1:db_file}}",
+      "description": "Open SQLite DB"
+    },
+    {
+      "id": "tab-ext",
+      "name": "Extensions 🧩",
+      "type": "tab",
+      "color": "#7C3AED"
+    },
+    {
+      "id": "folder-vscode-dev",
+      "name": "VS Code",
+      "type": "folder",
+      "parentId": "tab-ext",
+      "expanded": true,
+      "color": "#007ACC"
+    },
+    {
+      "id": "snip-vsce-package",
+      "name": "Package",
+      "type": "snippet",
+      "parentId": "folder-vscode-dev",
+      "command": "vsce package --allow-missing-repository",
+      "description": "Create VSIX"
+    },
+    {
+      "id": "folder-obsidian-dev",
+      "name": "Obsidian",
+      "type": "folder",
+      "parentId": "tab-ext",
+      "expanded": true,
+      "color": "#7C3AED"
+    },
+    {
+      "id": "snip-obs-release",
+      "name": "Release",
+      "type": "snippet",
+      "parentId": "folder-obsidian-dev",
+      "command": "npm run build && git tag {{arg$1:version}} && git push origin {{arg$1:version}}",
+      "description": "Build and tag release"
     }
   ],
   "settings": {
@@ -281,11 +658,12 @@
     "configFilePath": "c:\\Users\\Nephystos\\OneDrive\\Projets\\Coding\\AcidSnip\\acidsnip-config.json",
     "confirmDelete": true,
     "showVersionChecker": true,
-    "githubUsername": "microsoft",
+    "githubUsername": "infinition",
     "showGithubButton": true,
-    "executionMode": "locked",
+    "executionMode": "terminal",
     "enableRichTooltips": true,
     "commandHistoryLimit": 20,
-    "clipboardHistoryLimit": 20
+    "clipboardHistoryLimit": 20,
+    "stackedTabs": true
   }
 }
