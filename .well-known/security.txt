@@ -1,0 +1,4 @@
+Contact: https://github.com/infinition/Bjorn/issues
+Expires: 2027-01-01T00:00:00.000Z
+Preferred-Languages: en, fr
+Policy: https://github.com/infinition/Bjorn/blob/wiki/SECURITY.md
