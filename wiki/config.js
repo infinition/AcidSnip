@@ -10,10 +10,9 @@ const CONFIG = {
     description: "Official Documentation and Wiki for AcidSnip",
 
     // Versioning Settings
-    // Le workflow forcera "local" et injectera la version détectée (Tag)
     versioning: {
         type: "local",
-        manualVersion: "", // Sera remplacé par le Tag (ex: v1.0.0) ou vide
+        manualVersion: "vv0.0.4",
         manualDate: "2026-01-24"
     },
 
@@ -56,14 +55,13 @@ const CONFIG = {
         debug: false
     },
 
-    // Custom Navigation Links
-    // Vides par défaut (Le script les laisse vides pour désactiver Main Site/Store)
+    // Custom Navigation Links (Vides par défaut)
     links: {
         top: [],
         bottom: []
     },
 
-    // Footer Customization (Sera remplacé dynamiquement)
+    // Footer
     footerText: "© 2026 ACIDSNIP WIKI - All rights reserved",
 
     // UI Strings
@@ -96,11 +94,10 @@ const CONFIG = {
     manifestPath: "wiki/manifest.json",
 
     // Social Links
-    // "null" par défaut pour désactiver si aucun acidwiki.json n'est trouvé
     social: {
         discord: null,
         reddit: null,
-        github: "https://github.com/infinition/AcidSnip",,, // Sera mis à jour vers le repo courant
+        github: "https://github.com/infinition/AcidSnip", // Virgule respectée par le script
         buyMeACoffee: "https://buymeacoffee.com/infinition"
     },
 
