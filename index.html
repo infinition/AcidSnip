@@ -126,7 +126,7 @@
             transform: translateX(4px);
         }
 
-        /* --- HIGHLIGHT ANIMATION (NEW) --- */
+        /* --- HIGHLIGHT ANIMATION --- */
         @keyframes highlight-pulse {
             0% {
                 background-color: rgba(34, 197, 94, 0.8);
@@ -157,7 +157,6 @@
         mark.search-match {
             animation: highlight-pulse 1.5s ease-in-out;
             background-color: rgba(34, 197, 94, 0.2);
-            /* Final state */
             color: inherit;
             border-radius: 4px;
             padding: 0 2px;
@@ -176,7 +175,8 @@
         .badge-sm,
         .pagination-card,
         #toc-btn-mobile,
-        #toc-btn-desktop {
+        #toc-btn-desktop,
+        #clear-highlight-btn {
             position: relative;
             overflow: hidden;
         }
@@ -191,7 +191,8 @@
         .badge-sm::after,
         .pagination-card::after,
         #toc-btn-mobile::after,
-        #toc-btn-desktop::after {
+        #toc-btn-desktop::after,
+        #clear-highlight-btn::after {
             content: '';
             position: absolute;
             inset: 0;
@@ -211,7 +212,8 @@
         .badge-sm:hover::after,
         .pagination-card:hover::after,
         #toc-btn-mobile:hover::after,
-        #toc-btn-desktop:hover::after {
+        #toc-btn-desktop:hover::after,
+        #clear-highlight-btn:hover::after {
             opacity: 1;
         }
 
@@ -425,9 +427,9 @@
             color: var(--accent-green);
         }
 
+        /* --- READING PROGRESS BAR (UPDATED) --- */
         #reading-progress-bar {
             position: fixed;
-            top: 0;
             left: 0;
             height: 3px;
             background-color: var(--accent-green);
@@ -435,6 +437,8 @@
             z-index: 100;
             transition: width 0.1s;
             pointer-events: none;
+            /* Default: Top of screen */
+            top: 0;
         }
 
         .nav-list {
@@ -497,6 +501,23 @@
         }
 
         #scroll-top-btn.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+        }
+
+        /* --- CLEAR HIGHLIGHT BTN (NEW) --- */
+        #clear-highlight-btn {
+            position: absolute;
+            bottom: 6rem;
+            /* Above the scroll top btn */
+            left: 1.5rem;
+            /* Left side */
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 30;
+        }
+
+        #clear-highlight-btn.hidden {
             opacity: 0;
             pointer-events: none;
             transform: translateY(20px);
@@ -565,7 +586,8 @@
             #reading-progress-bar,
             #overlay,
             .copy-btn,
-            .toc-container {
+            .toc-container,
+            #clear-highlight-btn {
                 display: none !important;
             }
 
@@ -724,17 +746,14 @@
         /* --- MOBILE SAFE AREAS (iOS Notch/Home Indicator) --- */
         header {
             padding-top: env(safe-area-inset-top);
-            /* !important est nécessaire pour écraser la classe h-16 de Tailwind */
             height: calc(4rem + env(safe-area-inset-top)) !important;
         }
 
         #sidebar {
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
-            /* On s'assure que le menu fait toute la hauteur, encoche comprise */
             height: 100vh !important;
             height: 100dvh !important;
-            /* Dynamic Viewport Height pour Safari iOS */
         }
 
         #mobile-toc-sidebar {
@@ -754,9 +773,16 @@
                 padding-bottom: env(safe-area-inset-bottom);
             }
 
-            /* Correction pour que le contenu ne soit pas caché sous le header agrandi */
             .markdown-body {
                 margin-top: env(safe-area-inset-top);
+            }
+
+            /* MOVED PROGRESS BAR ON MOBILE */
+            #reading-progress-bar {
+                /* Place below the header (4rem) + safe area */
+                top: calc(4rem + env(safe-area-inset-top));
+                /* Ensure it stays above content but below header shadow if any */
+                z-index: 55;
             }
         }
     </style>
@@ -1004,6 +1030,12 @@
                 </aside>
             </div>
         </main>
+
+        <button id="clear-highlight-btn"
+            class="hidden p-3 rounded-full bg-hack-greenDim border border-hack-border text-hack-green hover:bg-hack-green hover:text-white shadow-lg"
+            title="Clear Search Highlights" aria-label="Clear Search Highlights">
+            <i data-lucide="eraser" class="w-5 h-5"></i>
+        </button>
 
         <button id="scroll-top-btn"
             class="absolute bottom-6 right-6 p-3 rounded-full bg-hack-greenDim border border-hack-border text-hack-green hover:bg-hack-green hover:text-white shadow-lg hidden z-30"
@@ -1809,12 +1841,16 @@
             const viewer = document.getElementById('markdown-viewer');
             const pageNav = document.getElementById('page-nav');
             const scrollContainer = document.getElementById('scroll-container');
+            const clearHighlightBtn = document.getElementById('clear-highlight-btn');
 
             STATE.currentTitle = title;
             STATE.currentFolder = folder;
             STATE.currentFilename = filename;
             document.getElementById('label-on-this-page').innerText = title;
             document.getElementById('label-mobile-toc').innerText = title;
+
+            // Reset highlight UI state
+            clearHighlightBtn.classList.add('hidden');
 
             const flatList = getFlatPageList();
             const idx = flatList.findIndex(item => item.folder === folder && item.title === title);
@@ -1983,6 +2019,18 @@
                 // HIGHLIGHT LOGIC START
                 if (highlightQuery) {
                     highlightAndScroll(highlightQuery);
+                    clearHighlightBtn.classList.remove('hidden');
+
+                    // Setup Clear Button Action
+                    clearHighlightBtn.onclick = () => {
+                        const marks = viewer.querySelectorAll('mark.search-match');
+                        marks.forEach(mark => {
+                            const text = document.createTextNode(mark.textContent);
+                            mark.parentNode.replaceChild(text, mark);
+                        });
+                        clearHighlightBtn.classList.add('hidden');
+                    };
+                    lucide.createIcons();
                 } else if (window.location.hash) {
                     const el = document.getElementById(window.location.hash.substring(1));
                     if (el) el.scrollIntoView();
@@ -2573,6 +2621,7 @@
             document.getElementById('page-nav').innerHTML = '';
             document.getElementById('reading-time').innerHTML = '';
             document.getElementById('last-updated').innerHTML = '';
+            document.getElementById('clear-highlight-btn').classList.add('hidden'); // Ensure button is hidden
 
             viewer.innerHTML = `<h1>${CONFIG.ui.changelogTitle}</h1><div id="versions-list" class="space-y-4 mt-6"><div class="animate-pulse text-hack-green">${CONFIG.ui.fetchingReleasesText}</div></div>`;
 
@@ -2841,7 +2890,7 @@
 
             // Mouse tracking for glow effects
             document.addEventListener('mousemove', (e) => {
-                const target = e.target.closest('.nav-link, .section-header, .copy-btn, .search-result-item, #menu-btn, #theme-toggle-desktop, #theme-toggle-mobile, .badge-sm, .pagination-card, #toc-btn-mobile, #toc-btn-desktop');
+                const target = e.target.closest('.nav-link, .section-header, .copy-btn, .search-result-item, #menu-btn, #theme-toggle-desktop, #theme-toggle-mobile, .badge-sm, .pagination-card, #toc-btn-mobile, #toc-btn-desktop, #clear-highlight-btn');
                 if (target) {
                     const rect = target.getBoundingClientRect();
                     const x = ((e.clientX - rect.left) / rect.width) * 100;
