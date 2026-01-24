@@ -5,14 +5,16 @@ on:
     branches: [ main ]
     paths:
       - 'wiki/**'
-      # On garde ce fichier dans les paths pour qu'une modif du trigger lance le sync
-      - '.github/workflows/wiki-sync.yml' 
+      - 'acidwiki.json'             # Important: Relance le sync si on change le JSON
+      - '.github/workflows/wiki-sync.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
-  call-central-sync:
-    # @main assure que nous toujours la dernière version du script
+  deploy-wiki:
+    # Appelle le script stocké sur AcidWiki
     uses: infinition/AcidWiki/.github/workflows/reusable-wiki-sync.yml@main
