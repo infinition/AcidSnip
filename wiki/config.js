@@ -1,23 +1,23 @@
 /**
- * AcidWiki Configuration
- * Customize your wiki by changing the values below.
+ * AcidWiki Configuration (Master Template)
+ * Ce fichier est écrasé dynamiquement par le workflow GitHub Actions.
+ * Ne modifiez pas les valeurs ici pour un projet spécifique, utilisez acidwiki.json.
  */
 const CONFIG = {
-    // Project Information
+    // Project Information (Sera remplacé par le nom du Repo)
     projectName: "ACIDSNIP",
-    projectSubtitle: "BJORN WIKI",
-    description: "Official Documentation and Wiki for BJORN Cyber Viking",
+    projectSubtitle: "ACIDSNIP WIKI",
+    description: "Official Documentation and Wiki for AcidSnip",
 
     // Versioning Settings
-    // type: "github" (automatic from API) or "local" (manual)
+    // Le workflow forcera "local" et injectera la version détectée (Tag)
     versioning: {
-        type: "github",
-        manualVersion: "v1.0.11",
-        manualDate: "2026-01-21"
+        type: "local",
+        manualVersion: "", // Sera remplacé par le Tag (ex: v1.0.0) ou vide
+        manualDate: "2026-01-24"
     },
 
-    // GitHub Repository (for version checking when type is "github")
-    // Format: "username/repo"
+    // GitHub Repository
     repo: "infinition/AcidSnip",
     branch: "main",
 
@@ -53,25 +53,20 @@ const CONFIG = {
         autoCollapseSidebar: false,
         stickyBreadcrumbs: true,
         showRootReadme: true,
-        debug: true
+        debug: false
     },
 
     // Custom Navigation Links
-    // Inserted at the top or bottom of the sidebar
+    // Vides par défaut (Le script les laisse vides pour désactiver Main Site/Store)
     links: {
-        top: [
-            { name: "Main Site", url: "https://example.com", icon: "external-link" }
-        ],
-        bottom: [
-            { name: "Portfolio", url: "https://portfolio.example.com", icon: "briefcase" },
-            { name: "Store", url: "https://store.example.com", icon: "shopping-cart" }
-        ]
+        top: [],
+        bottom: []
     },
 
-    // Footer Customization
-    footerText: "© 2026 BJORN WIKI - All rights reserved",
+    // Footer Customization (Sera remplacé dynamiquement)
+    footerText: "© 2026 ACIDSNIP WIKI - All rights reserved",
 
-    // UI Strings (Custom labels for the interface)
+    // UI Strings
     ui: {
         joinUsTitle: ":: JOIN US ::",
         onThisPageTitle: "On this page",
@@ -101,18 +96,18 @@ const CONFIG = {
     manifestPath: "wiki/manifest.json",
 
     // Social Links
-    // Set to null or empty string to hide the link
+    // "null" par défaut pour désactiver si aucun acidwiki.json n'est trouvé
     social: {
-        discord: "https://discord.gg/B3ZH9taVfT",
-        reddit: "https://www.reddit.com/r/Bjorn_CyberViking/",
-        github: "https://github.com/infinition/AcidSnip",
+        discord: null,
+        reddit: null,
+        github: "https://github.com/infinition/AcidSnip",,, // Sera mis à jour vers le repo courant
         buyMeACoffee: "https://buymeacoffee.com/infinition"
     },
 
-    // Badge Labels (Optional customization for shields.io)
+    // Badge Labels
     badges: {
         discordLabel: "COMMUNITY",
-        redditLabel: "r/BJORN",
-        githubLabel: "BJORN WIKI"
+        redditLabel: "REDDIT",
+        githubLabel: "SOURCE CODE"
     }
 };
