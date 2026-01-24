@@ -721,28 +721,42 @@
             margin-bottom: 0;
         }
 
+        /* --- MOBILE SAFE AREAS (iOS Notch/Home Indicator) --- */
         header {
             padding-top: env(safe-area-inset-top);
-            height: calc(4rem + env(safe-area-inset-top));
+            /* !important est nécessaire pour écraser la classe h-16 de Tailwind */
+            height: calc(4rem + env(safe-area-inset-top)) !important;
         }
 
         #sidebar {
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
+            /* On s'assure que le menu fait toute la hauteur, encoche comprise */
+            height: 100vh !important;
+            height: 100dvh !important;
+            /* Dynamic Viewport Height pour Safari iOS */
         }
 
         #mobile-toc-sidebar {
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
+            height: 100vh !important;
+            height: 100dvh !important;
         }
 
         #toast-container {
             margin-bottom: env(safe-area-inset-bottom);
         }
 
+        /* Adjust scroll container for safe areas if needed */
         @media (max-width: 768px) {
             #scroll-container {
                 padding-bottom: env(safe-area-inset-bottom);
+            }
+
+            /* Correction pour que le contenu ne soit pas caché sous le header agrandi */
+            .markdown-body {
+                margin-top: env(safe-area-inset-top);
             }
         }
     </style>
