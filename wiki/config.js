@@ -95,16 +95,16 @@ const CONFIG = {
 
     // Social Links
     social: {
-        discord: "https://discord.gg/B3ZH9taVfT",
-        reddit: "https://www.reddit.com/r/Bjorn_CyberViking",
+        discord: null,
+        reddit: null,
         github: "https://github.com/infinition/AcidSnip", // Virgule respectée par le script
-        buyMeACoffee: "https://github.com/infinition"
+        buyMeACoffee: "https://buymeacoffee.com/infinition"
     },
 
     // Badge Labels
     badges: {
         discordLabel: "COMMUNITY",
         redditLabel: "REDDIT",
-        githubLabel: "SOURCE CODE"
+        githubLabel: "ACIDSNIP"
     }
 };
