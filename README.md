@@ -1,7 +1,7 @@
 <img width="542" height="460" alt="Gemini_Generated_Image_h3tuwmh3tuwmh3tu-removebg-preview" src="https://github.com/user-attachments/assets/0dd974e7-497a-4c73-9d53-50850a804116" />
 
 
-# AcidSnip 🚀
+# AcidSnip 🚀🚀
 
 **AcidSnip** is a premium VS Code / Antigravity extension designed to revolutionize your terminal workflow. It provides a modern, highly interactive interface to store, organize, and execute your recurring commands with unparalleled speed and style.
 
