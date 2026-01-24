@@ -24,21 +24,6 @@ jobs:
       - name: Ensure Wiki Directory Exists
         run: mkdir -p wiki/docs
 
-      - name: Update Config with Repo Info
-        run: |
-          REPO_FULL_NAME="${{ github.repository }}"
-          REPO_OWNER="${{ github.repository_owner }}"
-          REPO_NAME="${REPO_FULL_NAME#*/}"
-          GITHUB_URL="https://github.com/$REPO_FULL_NAME"
-          
-          # Update wiki/config.js with repository information
-          if [ -f "wiki/config.js" ]; then
-            sed -i "s|repo: \"[^\"]*\"|repo: \"$REPO_FULL_NAME\"|g" wiki/config.js
-            sed -i "s|projectName: \"[^\"]*\"|projectName: \"${REPO_NAME^^}\"|g" wiki/config.js
-            sed -i "s|github: \"[^\"]*\"|github: \"$GITHUB_URL\"|g" wiki/config.js
-            echo "Updated wiki/config.js with repository info"
-          fi
-
       - name: Sync Core Files from Source
         run: |
           # Configuration
@@ -57,7 +42,7 @@ jobs:
             
             # Copy engine files (avoiding .git)
             cp -rv temp_source/index.html .
-            cp -rv temp_source/wiki/config.js wiki/ || true # Don't overwrite if exists
+            cp -rv temp_source/wiki/config.js wiki/
             cp -rv temp_source/wiki/themes wiki/
             cp -rv temp_source/wiki/assets wiki/
             cp -rv temp_source/wiki/manifest.json wiki/
@@ -78,9 +63,25 @@ jobs:
             fi
           fi
 
+      - name: Update Config with Repo Info
+        run: |
+          REPO_FULL_NAME="${{ github.repository }}"
+          REPO_OWNER="${{ github.repository_owner }}"
+          REPO_NAME="${REPO_FULL_NAME#*/}"
+          GITHUB_URL="https://github.com/$REPO_FULL_NAME"
+          
+          # Update wiki/config.js with repository information (AFTER files are copied)
+          if [ -f "wiki/config.js" ]; then
+            sed -i "s|repo: \"[^\"]*\"|repo: \"$REPO_FULL_NAME\"|g" wiki/config.js
+            sed -i "s|projectName: \"[^\"]*\"|projectName: \"${REPO_NAME^^}\"|g" wiki/config.js
+            sed -i "s|github: \"[^\"]*\"|github: \"$GITHUB_URL\"|g" wiki/config.js
+            echo "Updated wiki/config.js with repository info"
+          fi
+
       - name: Commit and Push Changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add index.html wiki/
           git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-update wiki core files [skip ci]" && git push)
+
