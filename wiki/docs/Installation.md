@@ -1,0 +1,1 @@
+# AcidSnip installation
