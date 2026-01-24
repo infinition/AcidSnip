@@ -9,59 +9,48 @@
         content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self' https:;">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title id="site-title">BJORN // WIKI NODE</title>
-    <meta name="description" id="meta-description" content="Official Documentation and Wiki for BJORN Cyber Viking">
+    <title id="site-title">WIKI NODE</title>
+    <meta name="description" id="meta-description" content="Official Documentation and Wiki">
 
-    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" id="og-url" content="">
-    <meta property="og:title" id="og-title" content="BJORN // WIKI NODE">
-    <meta property="og:description" id="og-desc" content="Official Documentation and Wiki for BJORN Cyber Viking">
-    <meta property="og:image" id="og-image" content="assets/bjorn.png">
+    <meta property="og:title" id="og-title" content="WIKI NODE">
+    <meta property="og:description" id="og-desc" content="Official Documentation and Wiki">
+    <meta property="og:image" id="og-image" content="wiki/assets/logo.png">
 
-    <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" id="tw-url" content="">
-    <meta property="twitter:title" id="tw-title" content="BJORN // WIKI NODE">
-    <meta property="twitter:description" id="tw-desc" content="Official Documentation and Wiki for BJORN Cyber Viking">
-    <meta property="twitter:image" id="tw-image" content="assets/bjorn.png">
+    <meta property="twitter:title" id="tw-title" content="WIKI NODE">
+    <meta property="twitter:description" id="tw-desc" content="Official Documentation and Wiki">
+    <meta property="twitter:image" id="tw-image" content="wiki/assets/logo.png">
 
-    <!-- Favicon -->
-    <link rel="icon" id="favicon-32" type="image/png" sizes="32x32" href="assets/bjorn.png">
-    <link rel="icon" id="favicon-16" type="image/png" sizes="16x16" href="assets/bjorn.png">
-    <link rel="apple-touch-icon" id="apple-icon" sizes="180x180" href="assets/bjorn.png">
-    <link rel="mask-icon" id="mask-icon" href="assets/bjorn.png" color="#22c55e">
-    <meta name="apple-mobile-web-app-title" id="apple-title" content="BjornWiki">
-    <meta name="application-name" id="app-name" content="BjornWiki">
+    <link rel="icon" id="favicon-32" type="image/png" sizes="32x32" href="wiki/assets/logo.png">
+    <link rel="icon" id="favicon-16" type="image/png" sizes="16x16" href="wiki/assets/logo.png">
+    <link rel="apple-touch-icon" id="apple-icon" sizes="180x180" href="wiki/assets/logo.png">
+    <link rel="mask-icon" id="mask-icon" href="wiki/assets/logo.png" color="#22c55e">
+    <meta name="apple-mobile-web-app-title" id="apple-title" content="Wiki">
+    <meta name="application-name" id="app-name" content="Wiki">
     <meta name="msapplication-TileColor" id="ms-tile-color" content="#0B0C0E">
     <meta name="theme-color" id="theme-color-meta" content="#0B0C0E">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" id="manifest-link" href="manifest.json">
+    <link rel="manifest" id="manifest-link" href="wiki/manifest.json">
 
-    <!-- Configuration -->
     <script src="wiki/config.js"></script>
 
-    <!-- Dynamic Theme -->
     <link id="theme-link" rel="stylesheet" href="">
 
-    <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Icons: Lucide -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Markdown Parser: Marked -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-    <!-- Sanitizer: DOMPurify -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 
-    <!-- Syntax Highlighting: Highlight.js -->
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
-    <!-- Fonts -->
     <link
         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap"
         rel="stylesheet">
@@ -777,13 +766,11 @@
 
     <div id="reading-progress-bar"></div>
 
-    <!-- Toast Notification -->
     <div id="toast-container">
         <i data-lucide="check-circle" class="w-4 h-4"></i>
         <span id="toast-message"></span>
     </div>
 
-    <!-- Lightbox -->
     <div id="lightbox"
         class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center opacity-0 invisible cursor-zoom-out"
         onclick="closeLightbox()">
@@ -791,12 +778,11 @@
             class="rounded-lg border border-hack-border transform scale-95 transition-transform duration-300">
     </div>
 
-    <!-- Mobile Header -->
     <header
         class="md:hidden flex-none bg-hack-sidebar border-b border-hack-border h-16 flex items-center justify-between px-4 z-[60] relative shadow-lg">
         <div class="flex items-center gap-3 cursor-pointer" onclick="loadDefault()">
             <div class="w-10 h-10">
-                <img id="mobile-logo" src="assets/bjorn.png"
+                <img id="mobile-logo" src="wiki/assets/logo.png"
                     onerror="this.src='https://placehold.co/40x40/111214/22c55e?text=B'" alt="Logo"
                     class="w-full h-full object-contain drop-shadow-[0_0_5px_rgba(34,197,94,0.3)]">
             </div>
@@ -825,11 +811,9 @@
         </div>
     </header>
 
-    <!-- Overlay -->
     <div id="overlay" class="fixed inset-0 bg-black/80 backdrop-blur-[2px] z-[65] hidden transition-opacity opacity-0">
     </div>
 
-    <!-- Mobile Sidebar (Left - Menu) -->
     <aside id="sidebar"
         class="sidebar-mobile fixed top-0 bottom-0 left-0 z-[70] w-[280px] bg-hack-sidebar border-r border-hack-border transform -translate-x-full md:translate-x-0 md:static md:h-full flex flex-col shadow-2xl md:shadow-none transition-transform duration-300">
 
@@ -842,7 +826,7 @@
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3 cursor-pointer" onclick="loadDefault()">
                     <div class="w-12 h-12 shrink-0">
-                        <img id="sidebar-logo" src="assets/bjorn.png"
+                        <img id="sidebar-logo" src="wiki/assets/logo.png"
                             onerror="this.src='https://placehold.co/48x48/111214/22c55e?text=B'" alt="Logo"
                             class="w-full h-full object-contain drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]">
                     </div>
@@ -915,19 +899,16 @@
                 <strong id="label-join-us" class="text-gray-500 text-sm block mb-3 font-mono tracking-wide">:: JOIN
                     US ::</strong>
                 <div id="social-links" class="flex flex-col gap-2">
-                    <!-- Social links will be injected by JS -->
                 </div>
             </div>
         </div>
 
         <div id="sidebar-footer"
             class="p-4 border-t border-hack-border bg-hack-bg/50 text-[10px] text-gray-500 font-mono text-center">
-            <!-- Footer text will be injected by JS -->
         </div>
 
     </aside>
 
-    <!-- Mobile Sidebar (Right - TOC) -->
     <aside id="mobile-toc-sidebar"
         class="sidebar-mobile fixed top-0 bottom-0 right-0 z-[70] w-[280px] bg-hack-sidebar border-l border-hack-border transform translate-x-full flex flex-col shadow-2xl transition-transform duration-300">
         <div class="p-4 border-b border-hack-border flex justify-between items-center bg-hack-bg/50">
@@ -1009,7 +990,6 @@
         </button>
     </div>
 
-    <!-- Search Modal -->
     <div id="search-modal-overlay"
         class="fixed inset-0 z-[150] bg-black/60 backdrop-blur-md hidden transition-opacity duration-300 opacity-0"
         onclick="closeSearch()">
@@ -1048,7 +1028,7 @@
 
         // Debug Logger
         function debugLog(...args) {
-            if (CONFIG.features.debug) {
+            if (typeof CONFIG !== 'undefined' && CONFIG.features.debug) {
                 console.log(...args);
             }
         }
@@ -1070,20 +1050,31 @@
 
         marked.use({ renderer });
         marked.setOptions({ breaks: false, gfm: true });
-        const STATE = {
+
+        // Safety check for CONFIG
+        let STATE = {
             wikiData: {},
             contentCache: {},
             searchIndex: [],
             expandedSections: new Set(),
-            repo: CONFIG.repo,
-            branch: CONFIG.branch,
+            repo: "infinition/AcidWiki", // Fallback
+            branch: "main",
             currentTitle: "",
             currentFolder: "",
             currentFilename: ""
         };
 
+        if (typeof CONFIG !== 'undefined') {
+            STATE.repo = CONFIG.repo;
+            STATE.branch = CONFIG.branch;
+        } else {
+            console.error("CRITICAL: CONFIG not loaded from wiki/config.js");
+        }
+
         // --- 1.5 INITIALIZE CONFIG ---
         function applyConfig() {
+            if (typeof CONFIG === 'undefined') return;
+
             document.getElementById('site-title').innerText = `${CONFIG.projectName} // ${CONFIG.projectSubtitle}`;
             document.getElementById('meta-description').setAttribute('content', CONFIG.description);
 
@@ -1306,7 +1297,7 @@
 
         document.getElementById('theme-toggle-desktop').onclick = cycleTheme;
         document.getElementById('theme-toggle-mobile').onclick = cycleTheme;
-        initTheme();
+        if (typeof CONFIG !== 'undefined') initTheme();
 
         // --- 3. FETCH DATA (GitHub API) ---
         async function fetchLatestVersion() {
@@ -1410,6 +1401,7 @@
         }
 
         async function fetchWikiStructureFromAPI() {
+            // CORRECTION : On autorise l'API même en mode local, tant qu'il y a un repo configuré
             if (!STATE.repo) {
                 debugLog('[AcidWiki] ⏭️ Skipping GitHub API (no repo configured)');
                 return null;
@@ -1665,7 +1657,6 @@
         async function buildSearchIndex() {
             const promises = [];
 
-            // 1. Indexation récursive du dossier wiki/docs/
             function indexRecursive(data, currentPath = '') {
                 for (const [key, value] of Object.entries(data)) {
                     if (typeof value === 'object' && value !== null) {
@@ -1713,6 +1704,30 @@
                             debugLog("[AcidWiki] 🔍 Root README indexed.");
                         })
                         .catch(e => console.warn("[AcidWiki] Failed to index README.md", e))
+                );
+            }
+
+            // 3. --- CHANGELOG INDEXING (API) ---
+            if (CONFIG.features.showChangelog) {
+                promises.push(
+                    fetch(`https://api.github.com/repos/${STATE.repo}/releases`)
+                        .then(res => { if (!res.ok) return []; return res.json(); })
+                        .then(data => {
+                            if (!Array.isArray(data) || data.length === 0) return;
+                            // On concatène toutes les releases pour la recherche
+                            const fullLog = data.map(r => `${r.tag_name} ${r.name || ''} ${r.body || ''}`).join(' ');
+
+                            STATE.searchIndex.push({
+                                folder: 'SYSTEM', // Petit tag visuel
+                                title: CONFIG.ui.changelogTitle,
+                                filename: 'CHANGELOG_SPECIAL_ID', // ID unique pour le clic
+                                content: fullLog.toLowerCase(),
+                                titleLower: CONFIG.ui.changelogTitle.toLowerCase(),
+                                isVirtual: true
+                            });
+                            debugLog("[AcidWiki] 🔍 Changelog indexed.");
+                        })
+                        .catch(() => { })
                 );
             }
 
@@ -2445,7 +2460,13 @@
         function selectSearchResult(index) {
             const res = window.currentSearchResults[index];
             if (res) {
-                loadContent(res.folder, res.title, res.filename);
+                // Si c'est le Changelog, on lance la fonction spéciale
+                if (res.filename === 'CHANGELOG_SPECIAL_ID') {
+                    toggleVersionsPage(null, true);
+                } else {
+                    // Comportement normal
+                    loadContent(res.folder, res.title, res.filename);
+                }
                 closeSearch();
             }
         }
@@ -2738,11 +2759,15 @@
 
         // INIT
         window.onload = () => {
-            applyConfig();
-            initUI();
-            fetchLatestVersion();
-            initWiki();
-            lucide.createIcons();
+            if (typeof CONFIG !== 'undefined') {
+                applyConfig();
+                initUI();
+                fetchLatestVersion();
+                initWiki();
+                lucide.createIcons();
+            } else {
+                showErrorState("CONFIG failed to load. Check wiki/config.js path.");
+            }
 
             // Register Service Worker
             if ('serviceWorker' in navigator) {
