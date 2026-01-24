@@ -91,7 +91,7 @@ const CONFIG = {
     // PWA & SEO Settings
     themeColor: "#0B0C0E",
     accentColor: "#22c55e",
-    manifestPath: "wiki/manifest.json",
+    manifestPath: "manifest.json",
 
     // Social Links
     social: {
