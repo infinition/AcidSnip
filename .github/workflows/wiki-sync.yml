@@ -1,0 +1,86 @@
+name: Wiki Sync & Auto-Config
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'wiki/**'
+      - '.github/workflows/wiki-sync.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure Wiki Directory Exists
+        run: mkdir -p wiki/docs
+
+      - name: Update Config with Repo Info
+        run: |
+          REPO_FULL_NAME="${{ github.repository }}"
+          REPO_OWNER="${{ github.repository_owner }}"
+          REPO_NAME="${REPO_FULL_NAME#*/}"
+          GITHUB_URL="https://github.com/$REPO_FULL_NAME"
+          
+          # Update wiki/config.js with repository information
+          if [ -f "wiki/config.js" ]; then
+            sed -i "s|repo: \"[^\"]*\"|repo: \"$REPO_FULL_NAME\"|g" wiki/config.js
+            sed -i "s|projectName: \"[^\"]*\"|projectName: \"${REPO_NAME^^}\"|g" wiki/config.js
+            sed -i "s|github: \"[^\"]*\"|github: \"$GITHUB_URL\"|g" wiki/config.js
+            echo "Updated wiki/config.js with repository info"
+          fi
+
+      - name: Sync Core Files from Source
+        run: |
+          # Configuration
+          SOURCE_REPO="infinition/AcidWiki"
+          SOURCE_BRANCH="main"
+          CURRENT_REPO="${{ github.repository }}"
+          
+          echo "Checking for core files..."
+          
+          # If index.html or wiki/themes are missing, we fetch everything
+          if [ ! -f "index.html" ] || [ ! -d "wiki/themes" ]; then
+            echo "Core files missing. Performing full engine sync from $SOURCE_REPO..."
+            
+            # Clone source to a temp directory
+            git clone --depth 1 --branch $SOURCE_BRANCH https://github.com/$SOURCE_REPO.git temp_source
+            
+            # Copy engine files (avoiding .git)
+            cp -rv temp_source/index.html .
+            cp -rv temp_source/wiki/config.js wiki/ || true # Don't overwrite if exists
+            cp -rv temp_source/wiki/themes wiki/
+            cp -rv temp_source/wiki/assets wiki/
+            cp -rv temp_source/wiki/manifest.json wiki/
+            cp -rv temp_source/wiki/sw.js wiki/
+            cp -rv temp_source/wiki/.nojekyll wiki/
+            cp -rv temp_source/wiki/robots.txt wiki/
+            
+            # NOTE: We NEVER copy README.md to avoid overwriting the project's main documentation.
+            
+            rm -rf temp_source
+          else
+            if [ "$CURRENT_REPO" != "$SOURCE_REPO" ]; then
+              echo "Syncing updates from $SOURCE_REPO ($SOURCE_BRANCH)..."
+              curl -sLo index.html "https://raw.githubusercontent.com/$SOURCE_REPO/$SOURCE_BRANCH/index.html"
+              # Themes and assets are usually more stable, we sync them only on full install or manually
+            else
+              echo "Current repo is source. Skipping core sync."
+            fi
+          fi
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add index.html wiki/
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-update wiki core files [skip ci]" && git push)
