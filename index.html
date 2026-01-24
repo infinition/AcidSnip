@@ -57,10 +57,6 @@
 
     <style>
         /* --- THEME ENGINE (CSS Variables) --- */
-        /* Variables are now loaded from themes/*.css */
-
-
-        /* Base Settings */
         body {
             background-color: var(--bg-body);
             color: var(--text-main);
@@ -68,7 +64,6 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
-        /* Scrollbar Styling */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -87,7 +82,6 @@
             background: var(--accent-green);
         }
 
-        /* --- GLASSMORPHISM & UI --- */
         .bg-hack-sidebar {
             background-color: var(--bg-sidebar);
             backdrop-filter: blur(10px);
@@ -130,6 +124,44 @@
             background-color: var(--accent-dim);
             border-color: var(--accent-green);
             transform: translateX(4px);
+        }
+
+        /* --- HIGHLIGHT ANIMATION (NEW) --- */
+        @keyframes highlight-pulse {
+            0% {
+                background-color: rgba(34, 197, 94, 0.8);
+                color: black;
+                transform: scale(1.05);
+                box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+            }
+
+            25% {
+                background-color: rgba(34, 197, 94, 0.3);
+                color: inherit;
+                transform: scale(1);
+            }
+
+            50% {
+                background-color: rgba(34, 197, 94, 0.8);
+                color: black;
+                transform: scale(1.05);
+            }
+
+            100% {
+                background-color: rgba(34, 197, 94, 0.2);
+                color: inherit;
+                transform: scale(1);
+            }
+        }
+
+        mark.search-match {
+            animation: highlight-pulse 1.5s ease-in-out;
+            background-color: rgba(34, 197, 94, 0.2);
+            /* Final state */
+            color: inherit;
+            border-radius: 4px;
+            padding: 0 2px;
+            display: inline-block;
         }
 
         /* --- MICRO-INTERACTIONS --- */
@@ -193,7 +225,6 @@
             background-color: var(--accent-dim);
         }
 
-        /* --- SKELETON SCREENS --- */
         .skeleton {
             background: linear-gradient(90deg, var(--bg-sidebar) 25%, var(--border-color) 50%, var(--bg-sidebar) 75%);
             background-size: 200% 100%;
@@ -242,7 +273,6 @@
             scroll-margin-top: 80px;
         }
 
-        /* Anchor Links (#) */
         .anchor-link {
             margin-left: 0.5rem;
             color: var(--accent-green);
@@ -261,7 +291,6 @@
         }
 
         .markdown-body p {
-            /* margin-bottom: 1.25rem; */
             line-height: 1.7;
         }
 
@@ -285,7 +314,6 @@
             font-weight: bold;
         }
 
-        /* Code Blocks */
         .markdown-body pre {
             background-color: var(--code-bg) !important;
             padding: 0 !important;
@@ -305,7 +333,6 @@
             overflow-x: auto;
         }
 
-        /* Inline Code */
         .markdown-body :not(pre)>code {
             background-color: var(--accent-dim);
             padding: 0.2em 0.4em;
@@ -345,7 +372,6 @@
             font-weight: 700;
         }
 
-        /* Images & Lightbox */
         .markdown-body img {
             max-width: 100%;
             border-radius: 8px;
@@ -373,7 +399,6 @@
             box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
         }
 
-        /* UI Elements */
         .copy-btn {
             position: absolute;
             top: 0.5rem;
@@ -400,7 +425,6 @@
             color: var(--accent-green);
         }
 
-        /* Reading Progress Bar */
         #reading-progress-bar {
             position: fixed;
             top: 0;
@@ -413,7 +437,6 @@
             pointer-events: none;
         }
 
-        /* Navigation */
         .nav-list {
             overflow: hidden;
             transition: max-height 0.3s ease-out;
@@ -445,7 +468,6 @@
             background-color: var(--accent-green) !important;
         }
 
-        /* TOC & Scroll */
         .toc-link.active {
             color: var(--accent-green);
         }
@@ -480,7 +502,6 @@
             transform: translateY(20px);
         }
 
-        /* Animations */
         @keyframes pulse-green {
 
             0%,
@@ -497,7 +518,6 @@
             animation: pulse-green 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
 
-        /* Focus & Inputs */
         input {
             background-color: var(--bg-body);
             color: var(--text-main);
@@ -530,7 +550,6 @@
             background: linear-gradient(180deg, var(--accent-green), var(--border-color));
         }
 
-        /* --- PRINT STYLESHEET --- */
         @media print {
             body {
                 background-color: white !important;
@@ -582,20 +601,15 @@
             }
         }
 
-        /* Hide scrollbar for breadcrumbs */
         #breadcrumbs {
             -ms-overflow-style: none;
-            /* IE and Edge */
             scrollbar-width: none;
-            /* Firefox */
         }
 
         #breadcrumbs::-webkit-scrollbar {
             display: none;
-            /* Chrome, Safari and Opera */
         }
 
-        /* Toast Notification */
         #toast-container {
             position: fixed;
             bottom: 2rem;
@@ -623,7 +637,6 @@
             opacity: 1;
         }
 
-        /* --- PAGE TRANSITIONS --- */
         .content-transition-area {
             view-transition-name: content-transition;
         }
@@ -664,7 +677,6 @@
             }
         }
 
-        /* --- STICKY BREADCRUMBS BUBBLE --- */
         .breadcrumb-sticky-container {
             position: relative;
             top: 0.75rem;
@@ -681,7 +693,6 @@
         .breadcrumb-sticky-container::before {
             content: '';
             position: absolute;
-            /* Default state: slightly smaller and invisible */
             inset: 0;
             background-color: var(--bg-sidebar);
             backdrop-filter: blur(12px);
@@ -699,7 +710,6 @@
         .breadcrumb-sticky-container.stuck::before {
             opacity: 1;
             transform: scale(1);
-            /* Grow outward to create padding effect without shifting text */
             inset: -0.6rem -1rem;
         }
 
@@ -711,7 +721,6 @@
             margin-bottom: 0;
         }
 
-        /* --- MOBILE SAFE AREAS (iOS Notch/Home Indicator) --- */
         header {
             padding-top: env(safe-area-inset-top);
             height: calc(4rem + env(safe-area-inset-top));
@@ -731,7 +740,6 @@
             margin-bottom: env(safe-area-inset-bottom);
         }
 
-        /* Adjust scroll container for safe areas if needed */
         @media (max-width: 768px) {
             #scroll-container {
                 padding-bottom: env(safe-area-inset-bottom);
@@ -1775,15 +1783,15 @@
         }
 
         // --- 5. CONTENT LOADER (PERSISTENT CACHE OPTIMIZED) ---
-        async function loadContent(folder, title, filename, pushHistory = true, isRoot = false) {
+        async function loadContent(folder, title, filename, pushHistory = true, isRoot = false, highlightQuery = null) {
             if (CONFIG.features.pageTransitions && document.startViewTransition) {
-                document.startViewTransition(() => performLoadContent(folder, title, filename, pushHistory, isRoot));
+                document.startViewTransition(() => performLoadContent(folder, title, filename, pushHistory, isRoot, highlightQuery));
             } else {
-                performLoadContent(folder, title, filename, pushHistory, isRoot);
+                performLoadContent(folder, title, filename, pushHistory, isRoot, highlightQuery);
             }
         }
 
-        async function performLoadContent(folder, title, filename, pushHistory = true, isRoot = false) {
+        async function performLoadContent(folder, title, filename, pushHistory = true, isRoot = false, highlightQuery = null) {
             const viewer = document.getElementById('markdown-viewer');
             const pageNav = document.getElementById('page-nav');
             const scrollContainer = document.getElementById('scroll-container');
@@ -1957,12 +1965,17 @@
                     STATE.expandedSections.add(folder);
                 }
                 renderSidebar();
-                if (window.location.hash) {
+
+                // HIGHLIGHT LOGIC START
+                if (highlightQuery) {
+                    highlightAndScroll(highlightQuery);
+                } else if (window.location.hash) {
                     const el = document.getElementById(window.location.hash.substring(1));
                     if (el) el.scrollIntoView();
                 } else {
                     scrollContainer.scrollTop = 0;
                 }
+                // HIGHLIGHT LOGIC END
 
                 if (window.innerWidth < 768) closeMenu();
 
@@ -1978,6 +1991,42 @@
                     </div>`;
 
                 document.getElementById('breadcrumbs').innerHTML = `<span class="hover:text-hack-heading cursor-pointer" onclick="loadDefault()">wiki</span> <span>/</span> <span class="text-red-500">Error</span>`;
+            }
+        }
+
+        // NEW FUNCTION: Highlight and scroll to text
+        function highlightAndScroll(query) {
+            if (!query) return;
+            const viewer = document.getElementById('markdown-viewer');
+
+            // Safe search - simple but robust via TreeWalker to avoid breaking HTML tags
+            const walker = document.createTreeWalker(viewer, NodeFilter.SHOW_TEXT, null, false);
+            const textNodes = [];
+            while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+            let firstMatch = null;
+            // Escape special regex chars from query
+            const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${safeQuery})`, 'gi');
+
+            for (const node of textNodes) {
+                if (node.nodeValue && node.nodeValue.match(regex)) {
+                    const span = document.createElement('span');
+                    span.innerHTML = node.nodeValue.replace(regex, '<mark class="search-match">$1</mark>');
+                    node.parentNode.replaceChild(span, node);
+
+                    // Find the mark we just created inside this span
+                    if (!firstMatch) {
+                        firstMatch = span.querySelector('.search-match');
+                    }
+                }
+            }
+
+            if (firstMatch) {
+                // Delay slightly to ensure layout is ready
+                setTimeout(() => {
+                    firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
             }
         }
 
@@ -2464,8 +2513,10 @@
                 if (res.filename === 'CHANGELOG_SPECIAL_ID') {
                     toggleVersionsPage(null, true);
                 } else {
-                    // Comportement normal
-                    loadContent(res.folder, res.title, res.filename);
+                    // Comportement normal avec HIGHLIGHT
+                    // On récupère la requête depuis l'input de recherche
+                    const query = document.getElementById('modal-search-input').value.trim();
+                    loadContent(res.folder, res.title, res.filename, true, false, query);
                 }
                 closeSearch();
             }
