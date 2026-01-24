@@ -1665,6 +1665,7 @@
         async function buildSearchIndex() {
             const promises = [];
 
+            // 1. Indexation récursive du dossier wiki/docs/
             function indexRecursive(data, currentPath = '') {
                 for (const [key, value] of Object.entries(data)) {
                     if (typeof value === 'object' && value !== null) {
@@ -1693,6 +1694,28 @@
             }
 
             indexRecursive(STATE.wikiData);
+
+            // 2. --- MANUAL INDEXING OF ROOT README ---
+            if (CONFIG.features.showRootReadme) {
+                promises.push(
+                    fetch('README.md')
+                        .then(res => { if (!res.ok) return ''; return res.text(); })
+                        .then(text => {
+                            if (!text) return;
+                            // On l'ajoute manuellement à l'index
+                            STATE.searchIndex.push({
+                                folder: '', // Racine
+                                title: CONFIG.ui.rootReadmeTitle || "Project Home",
+                                filename: 'README.md',
+                                content: text.toLowerCase(),
+                                titleLower: (CONFIG.ui.rootReadmeTitle || "Project Home").toLowerCase()
+                            });
+                            debugLog("[AcidWiki] 🔍 Root README indexed.");
+                        })
+                        .catch(e => console.warn("[AcidWiki] Failed to index README.md", e))
+                );
+            }
+
             await Promise.all(promises);
         }
 
