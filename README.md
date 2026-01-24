@@ -10,7 +10,7 @@
 <img width="1178" height="644" alt="image" src="https://github.com/user-attachments/assets/97e6abb6-8644-4228-97d9-2047e4bb71af" />
 
 
-## ✨ Key Features
+##  ✨ Key Features
 
 ### 📑 Smart Tab System (New!)
 *   **Overflow Menu**: Automatically detects when tabs run out of space and provides a sleek chevron menu (⌄) to access hidden tabs.
