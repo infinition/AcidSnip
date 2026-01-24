@@ -52,7 +52,7 @@ const CONFIG = {
         autoCollapseSidebar: false,
         stickyBreadcrumbs: true,
         showRootReadme: true,
-        debug: false
+        debug: true
     },
 
     // Custom Navigation Links (Vides par défaut)
