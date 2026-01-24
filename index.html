@@ -1410,8 +1410,8 @@
         }
 
         async function fetchWikiStructureFromAPI() {
-            if (CONFIG.versioning.type === 'local' || !STATE.repo) {
-                debugLog('[AcidWiki] ⏭️ Skipping GitHub API (local mode or no repo configured)');
+            if (!STATE.repo) {
+                debugLog('[AcidWiki] ⏭️ Skipping GitHub API (no repo configured)');
                 return null;
             }
 
