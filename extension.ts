@@ -21,6 +21,8 @@ interface Settings {
     showGithubButton: boolean;
     executionMode: 'terminal' | 'editor' | 'locked';
     enableRichTooltips: boolean;
+    tabsPosition: 'top' | 'left' | 'right';
+    tabsPanelWidth: number;
     commandHistoryLimit: number;
     clipboardHistoryLimit: number;
 }
@@ -173,6 +175,8 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                                 showGithubButton: true,
                                 executionMode: 'terminal',
                                 enableRichTooltips: true,
+                                tabsPosition: 'top',
+                                tabsPanelWidth: 180,
                                 commandHistoryLimit: 20,
                                 clipboardHistoryLimit: 20
                             };
@@ -328,6 +332,8 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             showGithubButton: true,
             executionMode: 'terminal',
             enableRichTooltips: true,
+            tabsPosition: 'top',
+            tabsPanelWidth: 180,
             commandHistoryLimit: 20,
             clipboardHistoryLimit: 20
         };
@@ -731,6 +737,10 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
     <link href="https://cdn.jsdelivr.net/npm/@vscode/codicons/dist/codicon.css" rel="stylesheet" />
     <title>AcidSnip</title>
     <style>
+        /* Scrollbars cachées pour tout le widget (le défilement reste actif) */
+        *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+        * { scrollbar-width: none; -ms-overflow-style: none; }
+        html, body { scrollbar-width: none; -ms-overflow-style: none; }
         body {
             font-family: var(--vscode-font-family);
             color: var(--vscode-foreground);
@@ -776,9 +786,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border);
             padding: 0 5px; align-items: center; height: 38px; flex-shrink: 0; white-space: nowrap;
         }
-        .tabs-container::-webkit-scrollbar { height: 3px; }
-        .tabs-container::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); border-radius: 3px; }
-        .tabs-container::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground); }
+        .tabs-container::-webkit-scrollbar { display: none; }
         .tab {
             padding: 5px 10px; cursor: pointer; opacity: 0.7; border-bottom: 2px solid transparent; font-size: 12px;
             user-select: none; display: flex; align-items: center; gap: 5px; flex-shrink: 0;
@@ -786,7 +794,8 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .tab:hover { opacity: 1; background-color: var(--vscode-list-hoverBackground); }
         .tab.active { opacity: 1; border-bottom-color: var(--vscode-activityBarBadge-background); font-weight: bold; }
         .main-container { flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100vh; position: relative; }
-        .content { flex: 1; overflow-y: auto; padding: 10px; }
+        .main-content-wrap { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+        .content { flex: 1; overflow-y: auto; padding: 10px; padding-bottom: 38px; scrollbar-width: none; -ms-overflow-style: none; }
         
         /* Sidebar & FAB Integration */
         .sidebar {
@@ -919,6 +928,13 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         /* Horizontal toolbar mode when viewport is too short */
         body.horizontal-toolbar { flex-direction: column; }
         body.horizontal-toolbar .main-container { flex: 1; height: auto; min-height: 0; }
+        /* Quand la barre droite est en haut (inline), barre au-dessus des snippets */
+        .main-container.right-sidebar-inline { min-height: 220px; }
+        .right-sidebar-inline-wrap {
+            display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0;
+        }
+        .main-container.right-sidebar-inline .main-content-wrap { flex: 1; min-height: 160px; min-width: 180px; }
+        .main-container.right-sidebar-inline .content { min-height: 120px; min-width: 0; }
         body.horizontal-toolbar .sidebar {
             width: 100%; height: 44px; flex-direction: row; justify-content: center;
             border-left: none; border-top: 1px solid var(--vscode-sideBar-border);
@@ -974,8 +990,8 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .snippet-item:hover .actions, .folder-header:hover .actions { display: flex; }
         .action-btn { background: none; border: none; color: inherit; cursor: pointer; opacity: 0.7; padding: 2px; font-size: 14px; }
         .action-btn:hover { opacity: 1; transform: scale(1.1); }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-start; z-index: 100; padding: 10px; box-sizing: border-box; overflow-y: auto; }
-        .modal { background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-widget-border); padding: 15px; border-radius: 4px; width: 90%; max-width: 300px; max-height: calc(100vh - 20px); overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5); margin: auto; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-start; z-index: 100; padding: 10px; box-sizing: border-box; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
+        .modal { background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-widget-border); padding: 15px; border-radius: 4px; width: 90%; max-width: 300px; max-height: calc(100vh - 20px); overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; box-shadow: 0 4px 20px rgba(0,0,0,0.5); margin: auto; }
         .modal h3 { margin-top: 0; font-size: 14px; }
         .modal label { display: block; font-size: 11px; margin-bottom: 4px; opacity: 0.8; }
         .modal input, .modal textarea { width: 100%; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); padding: 5px 30px 5px 8px; margin-bottom: 0; border-radius: 2px; box-sizing: border-box; font-family: inherit; }
@@ -1030,7 +1046,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .emoji-picker-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         .emoji-search { padding: 8px; border-bottom: 1px solid var(--vscode-widget-border); }
         .emoji-search input { margin-bottom: 0 !important; font-size: 12px; padding: 4px 8px !important; }
-        .emoji-list { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(5, 1fr); padding: 5px; gap: 5px; }
+        .emoji-list { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(5, 1fr); padding: 5px; gap: 5px; scrollbar-width: none; -ms-overflow-style: none; }
         .emoji-item { 
             cursor: pointer; text-align: center; font-size: 18px; padding: 6px; 
             border-radius: 4px; transition: background 0.1s; display: flex; align-items: center; justify-content: center;
@@ -1088,7 +1104,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .history-tabs { display: flex; border-bottom: 1px solid var(--vscode-widget-border); margin-bottom: 10px; gap: 10px; }
         .history-tab { padding: 5px 10px; cursor: pointer; opacity: 0.6; font-size: 12px; border-bottom: 2px solid transparent; }
         .history-tab.active { opacity: 1; border-bottom-color: var(--vscode-activityBarBadge-background); font-weight: bold; }
-        .history-list { flex: 1; overflow-y: auto; display: none; flex-direction: column; gap: 4px; padding-bottom: 10px; }
+        .history-list { flex: 1; overflow-y: auto; display: none; flex-direction: column; gap: 4px; padding-bottom: 10px; scrollbar-width: none; -ms-overflow-style: none; }
         .history-list.active { display: flex; }
         .history-item { 
             padding: 8px 10px; background: var(--vscode-list-inactiveSelectionBackground); 
@@ -1134,7 +1150,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .version-box:hover { border-color: var(--vscode-focusBorder); transform: scale(1.05); }
         .version-box.outdated { border-color: #f97316; }
         .version-box.current { border-color: #22c55e; }
-        .repo-list { max-height: 300px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--vscode-widget-border); border-radius: 4px; }
+        .repo-list { max-height: 300px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--vscode-widget-border); border-radius: 4px; scrollbar-width: none; -ms-overflow-style: none; }
         .repo-item { padding: 8px 12px; border-bottom: 1px solid var(--vscode-widget-border); cursor: pointer; transition: background 0.2s; }
         .repo-item:last-child { border-bottom: none; }
         .repo-item:hover { background: var(--vscode-list-hoverBackground); }
@@ -1151,12 +1167,13 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             padding: 8px 12px;
             border-radius: 4px;
             z-index: 3000;
-            pointer-events: none;
+            pointer-events: none !important;
             display: none;
             max-width: 300px;
             font-size: 12px;
             line-height: 1.4;
         }
+        .rich-tooltip * { pointer-events: none !important; }
         .tooltip-section { margin-bottom: 8px; }
         .tooltip-section:last-child { margin-bottom: 0; }
         .tooltip-label { font-weight: bold; font-size: 10px; opacity: 0.6; text-transform: uppercase; margin-bottom: 2px; }
@@ -1166,10 +1183,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         /* Tab Overflow */
         .tabs-wrapper { display: flex; align-items: center; width: 100%; position: relative; border-bottom: 1px solid var(--vscode-widget-border); }
         .tabs-container { flex: 1; overflow-x: auto; border-bottom: none; display: flex; align-items: center; }
-        .tabs-container::-webkit-scrollbar { height: 3px; display: block; }
-        .tabs-container::-webkit-scrollbar-track { background: transparent; }
-        .tabs-container::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); border-radius: 3px; }
-        .tabs-container::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground); }
+        .tabs-container::-webkit-scrollbar { display: none; }
         .overflow-btn { 
             padding: 5px 8px; cursor: pointer; opacity: 0.7; font-size: 12px; 
             display: none; align-items: center; justify-content: center;
@@ -1187,6 +1201,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             z-index: 2000; display: none;
             max-height: 300px; overflow-y: auto;
             min-width: 150px;
+            scrollbar-width: none; -ms-overflow-style: none;
         }
         .overflow-menu.active { display: block; }
         .overflow-item {
@@ -1196,6 +1211,47 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         }
         .overflow-item:hover { background: var(--vscode-list-hoverBackground); }
         .overflow-item.active { background: var(--vscode-list-activeSelectionBackground); border-left-color: var(--vscode-activityBarBadge-background); }
+        /* Tabs vertical (left or right) */
+        .main-container.tabs-left { flex-direction: row; }
+        .main-container.tabs-right { flex-direction: row; }
+        .main-container.tabs-left .tabs-wrapper,
+        .main-container.tabs-right .tabs-wrapper {
+            min-width: 120px; max-width: 400px; flex-shrink: 0;
+            flex-direction: column; align-items: stretch;
+            border-bottom: none; border-right: 1px solid var(--vscode-widget-border);
+            height: 100%; overflow: visible;
+        }
+        .main-container.tabs-right .tabs-wrapper { order: 3; border-right: none; border-left: 1px solid var(--vscode-widget-border); }
+        .main-container.tabs-right .tabs-resize-handle { order: 2; }
+        .main-container.tabs-right .main-content-wrap { order: 1; }
+        .main-container.tabs-left .tabs-container,
+        .main-container.tabs-right .tabs-container {
+            flex-direction: column; flex: 1; overflow-y: auto; overflow-x: hidden;
+            height: auto; min-height: 0; padding: 5px; border-bottom: none; border-right: 1px solid var(--vscode-sideBarSectionHeader-border);
+        }
+        .main-container.tabs-right .tabs-container { border-right: none; border-left: 1px solid var(--vscode-sideBarSectionHeader-border); }
+        .main-container.tabs-left .tab,
+        .main-container.tabs-right .tab {
+            border-bottom: none; border-right: 2px solid transparent; width: 100%; justify-content: flex-start;
+        }
+        .main-container.tabs-right .tab { border-right: none; border-left: 2px solid transparent; }
+        .main-container.tabs-left .tab.active { border-bottom-color: transparent; border-right-color: var(--vscode-activityBarBadge-background); }
+        .main-container.tabs-right .tab.active { border-left-color: var(--vscode-activityBarBadge-background); }
+        .main-container.tabs-left .tabs-container::-webkit-scrollbar,
+        .main-container.tabs-right .tabs-container::-webkit-scrollbar { display: none; }
+        .main-container.tabs-left .overflow-menu { top: auto; left: 100%; right: auto; }
+        .main-container.tabs-right .overflow-menu { top: auto; right: 100%; left: auto; }
+        .tabs-resize-handle {
+            display: none; width: 4px; flex-shrink: 0; cursor: col-resize;
+            background: transparent; position: relative;
+        }
+        .main-container.tabs-left .tabs-resize-handle,
+        .main-container.tabs-right .tabs-resize-handle { display: block; }
+        .tabs-resize-handle::after {
+            content: ''; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 2px; background: var(--vscode-widget-border); opacity: 0.5; border-radius: 1px;
+        }
+        .tabs-resize-handle:hover::after { opacity: 1; background: var(--vscode-focusBorder); }
     </style>
 </head>
 <body>
@@ -1216,21 +1272,24 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         <div class="side-spacer"></div>
         <button class="side-btn" onclick="toggleSearch()" title="Search" id="search-btn">🔍</button>
     </div>
-    <div class="main-container">
-        <div class="tabs-wrapper">
+    <div class="main-container" id="main-container">
+        <div class="tabs-wrapper" id="tabs-wrapper">
             <div class="execution-toggle-btn" id="execution-toggle" onclick="toggleExecutionMode()">💻</div>
             <div class="tabs-container" id="tabs-container"></div>
             <div class="overflow-btn" id="overflow-btn" onclick="toggleOverflowMenu()" ondragenter="toggleOverflowMenu()" title="Show all tabs">⌄</div>
             <div class="settings-btn" id="settings-btn" onclick="openSettings()" title="Settings">⚙️</div>
             <div class="overflow-menu" id="overflow-menu"></div>
         </div>
-        <div class="search-container" id="search-container">
-            <div class="search-input-wrapper">
-                <input type="text" class="search-input" id="search-input" placeholder="🔍 Search snippets, folders, tabs..." oninput="performSearch()" onkeydown="handleSearchKeydown(event)">
-                <span class="search-clear-btn" id="search-clear-btn" onclick="clearSearch()">✕</span>
+        <div class="tabs-resize-handle" id="tabs-resize-handle" title="Redimensionner le volet des onglets"></div>
+        <div class="main-content-wrap">
+            <div class="search-container" id="search-container">
+                <div class="search-input-wrapper">
+                    <input type="text" class="search-input" id="search-input" placeholder="🔍 Search snippets, folders, tabs..." oninput="performSearch()" onkeydown="handleSearchKeydown(event)">
+                    <span class="search-clear-btn" id="search-clear-btn" onclick="clearSearch()">✕</span>
+                </div>
             </div>
+            <div class="content" id="content"></div>
         </div>
-        <div class="content" id="content"></div>
     </div>
     <div class="sidebar sidebar-right">
         <button class="side-btn" onclick="cdToActiveFile()" title="CD to Explorer Selection">📂</button>
@@ -1261,6 +1320,14 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             </div>
 
             <div id="settings-display" class="settings-content active">
+                <div style="margin-bottom: 10px;">
+                    <label>Tabs position</label>
+                    <select id="tabs-position-select" onchange="updateTabsPosition(this.value)" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--vscode-dropdown-background); color: var(--vscode-foreground); border: 1px solid var(--vscode-widget-border); border-radius: 4px;">
+                        <option value="top">Top (horizontal)</option>
+                        <option value="left">Left (vertical)</option>
+                        <option value="right">Right (vertical)</option>
+                    </select>
+                </div>
                 <div class="toggle-row">
                     <span>Reload Button</span>
                     <div class="toggle-switch" id="toggle-reload" onclick="toggleReloadButton()"></div>
@@ -1400,7 +1467,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         let colorPickerItemId = null;
         let confirmCallback = null;
         let searchMode = false;
-        let settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, executionMode: 'terminal', commandHistoryLimit: 20, clipboardHistoryLimit: 20 };
+        let settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, executionMode: 'terminal', tabsPosition: 'top', tabsPanelWidth: 180, commandHistoryLimit: 20, clipboardHistoryLimit: 20 };
         let commandHistory = [];
         let clipboardHistory = [];
 
@@ -1460,7 +1527,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                     render();
                     break;
                 case 'loadSettings':
-                    settings = message.settings || { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, githubUsername: '', showGithubButton: true, executionMode: 'terminal', enableRichTooltips: true, commandHistoryLimit: 20, clipboardHistoryLimit: 20 };
+                    settings = message.settings || { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, githubUsername: '', showGithubButton: true, executionMode: 'terminal', enableRichTooltips: true, tabsPosition: 'top', tabsPanelWidth: 180, commandHistoryLimit: 20, clipboardHistoryLimit: 20 };
                     updateSettingsUI();
                     break;
                 case 'loadHistory':
@@ -1512,8 +1579,69 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             if (cmdLimitInput) cmdLimitInput.value = settings.commandHistoryLimit || 20;
             if (clipLimitInput) clipLimitInput.value = settings.clipboardHistoryLimit || 20;
             
+            const tabsPositionSelect = document.getElementById('tabs-position-select');
+            if (tabsPositionSelect) tabsPositionSelect.value = settings.tabsPosition || 'top';
+            
+            const mainContainer = document.getElementById('main-container');
+            if (mainContainer) {
+                mainContainer.classList.remove('tabs-left', 'tabs-right');
+                const pos = settings.tabsPosition || 'top';
+                if (pos === 'left') mainContainer.classList.add('tabs-left');
+                else if (pos === 'right') mainContainer.classList.add('tabs-right');
+            }
+            
+            const tabsWrapper = document.getElementById('tabs-wrapper');
+            const pos = settings.tabsPosition || 'top';
+            if ((pos === 'left' || pos === 'right') && tabsWrapper) {
+                const w = Math.min(400, Math.max(120, settings.tabsPanelWidth || 180));
+                tabsWrapper.style.width = w + 'px';
+            } else if (tabsWrapper) {
+                tabsWrapper.style.width = '';
+            }
+            
             updateExecutionModeUI();
             checkToolbarLayout();
+            setTimeout(checkOverflow, 50);
+        }
+        
+        function initTabsResize() {
+            const handle = document.getElementById('tabs-resize-handle');
+            const wrapper = document.getElementById('tabs-wrapper');
+            const mainContainer = document.getElementById('main-container');
+            if (!handle || !wrapper || !mainContainer) return;
+            let dragging = false, startX = 0, startW = 0;
+            handle.onmousedown = (e) => {
+                if (settings.tabsPosition !== 'left' && settings.tabsPosition !== 'right') return;
+                e.preventDefault();
+                dragging = true;
+                startX = e.clientX;
+                startW = wrapper.offsetWidth;
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            };
+            const onmove = (e) => {
+                if (!dragging) return;
+                const delta = settings.tabsPosition === 'left' ? (e.clientX - startX) : (startX - e.clientX);
+                let w = Math.min(400, Math.max(120, startW + delta));
+                wrapper.style.width = w + 'px';
+                settings.tabsPanelWidth = w;
+            };
+            const onup = () => {
+                if (!dragging) return;
+                dragging = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                vscode.postMessage({ type: 'saveSettings', settings });
+                checkOverflow();
+            };
+            document.addEventListener('mousemove', onmove);
+            document.addEventListener('mouseup', onup);
+        }
+        
+        function updateTabsPosition(value) {
+            settings.tabsPosition = value === 'left' || value === 'right' ? value : 'top';
+            vscode.postMessage({ type: 'saveSettings', settings });
+            updateSettingsUI();
         }
 
         function toggleExecutionMode() {
@@ -1619,23 +1747,40 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         function checkRightSidebarLayout() {
             const sidebar = document.querySelector('.sidebar-right');
             const body = document.body;
-            if (!sidebar) return;
+            const mainContainer = document.querySelector('.main-container');
+            if (!sidebar || !mainContainer) return;
 
             const iconsCount = sidebar.querySelectorAll('.side-btn:not([style*="display: none"])').length;
             const requiredHeight = iconsCount * 44 + 20; // 44px per icon + padding
             
             if (window.innerHeight < requiredHeight) {
                 sidebar.classList.add('horizontal');
-                // Move sidebar to bottom of main-container if not already there
-                const mainContainer = document.querySelector('.main-container');
                 if (sidebar.parentElement === body) {
-                    mainContainer.appendChild(sidebar);
+                    const mainContentWrap = mainContainer.querySelector('.main-content-wrap');
+                    if (mainContentWrap && !document.getElementById('right-sidebar-inline-wrap')) {
+                        const next = mainContentWrap.nextSibling;
+                        const wrap = document.createElement('div');
+                        wrap.id = 'right-sidebar-inline-wrap';
+                        wrap.className = 'right-sidebar-inline-wrap';
+                        wrap.appendChild(sidebar);
+                        wrap.appendChild(mainContentWrap);
+                        mainContainer.insertBefore(wrap, next);
+                    }
+                    mainContainer.classList.add('right-sidebar-inline');
                 }
             } else {
                 sidebar.classList.remove('horizontal');
-                // Move sidebar back to body (after main-container)
                 if (sidebar.parentElement !== body) {
-                    body.appendChild(sidebar);
+                    const wrap = document.getElementById('right-sidebar-inline-wrap');
+                    if (wrap) {
+                        const mainContentWrap = wrap.querySelector('.main-content-wrap');
+                        if (mainContentWrap) mainContainer.insertBefore(mainContentWrap, wrap);
+                        body.appendChild(sidebar);
+                        wrap.remove();
+                    } else {
+                        body.appendChild(sidebar);
+                    }
+                    mainContainer.classList.remove('right-sidebar-inline');
                 }
             }
         }
@@ -1645,11 +1790,16 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             const btn = document.getElementById('overflow-btn');
             if (!container || !btn) return;
 
-            if (container.scrollWidth > container.clientWidth) {
+            const isVertical = settings.tabsPosition === 'left' || settings.tabsPosition === 'right';
+            const hasOverflow = isVertical
+                ? (container.scrollHeight > container.clientHeight)
+                : (container.scrollWidth > container.clientWidth);
+            if (hasOverflow) {
                 btn.style.display = 'flex';
             } else {
                 btn.style.display = 'none';
-                document.getElementById('overflow-menu').classList.remove('active');
+                const menu = document.getElementById('overflow-menu');
+                if (menu) menu.classList.remove('active');
                 btn.classList.remove('active');
             }
         }
@@ -3012,20 +3162,42 @@ function renderHistoryView(container) {
 
                 this.el.innerHTML = html;
                 this.el.style.display = 'block';
-                this.move(e);
+                this.positionNear(e.target);
+            },
+            positionNear(targetEl) {
+                if (!this.el || !targetEl || !targetEl.getBoundingClientRect) return;
+                const gap = 8;
+                const elRect = targetEl.getBoundingClientRect();
+                this.el.style.left = '';
+                this.el.style.right = '';
+                this.el.style.top = '';
+                this.el.style.bottom = '';
+                const tipRect = this.el.getBoundingClientRect();
+                const viewpad = 10;
+                const spaceAbove = elRect.top;
+                const spaceBelow = window.innerHeight - elRect.bottom;
+                const spaceLeft = elRect.left;
+                const spaceRight = window.innerWidth - elRect.right;
+                const centerX = elRect.left + elRect.width / 2 - tipRect.width / 2;
+                const left = Math.max(viewpad, Math.min(centerX, window.innerWidth - tipRect.width - viewpad));
+                if (spaceAbove >= tipRect.height + gap) {
+                    this.el.style.left = left + 'px';
+                    this.el.style.top = (elRect.top - tipRect.height - gap) + 'px';
+                } else if (spaceBelow >= tipRect.height + gap) {
+                    this.el.style.left = left + 'px';
+                    this.el.style.top = (elRect.bottom + gap) + 'px';
+                } else if (spaceRight >= tipRect.width + gap) {
+                    this.el.style.left = (elRect.right + gap) + 'px';
+                    this.el.style.top = (elRect.top + elRect.height / 2 - tipRect.height / 2) + 'px';
+                } else if (spaceLeft >= tipRect.width + gap) {
+                    this.el.style.left = (elRect.left - tipRect.width - gap) + 'px';
+                    this.el.style.top = (elRect.top + elRect.height / 2 - tipRect.height / 2) + 'px';
+                } else {
+                    this.el.style.left = left + 'px';
+                    this.el.style.top = (elRect.top - tipRect.height - gap) + 'px';
+                }
             },
             move(e) {
-                if (!this.el) return;
-                const x = e.clientX + 15;
-                const y = e.clientY + 15;
-
-                // Keep inside viewport
-                const rect = this.el.getBoundingClientRect();
-                const maxX = window.innerWidth - rect.width - 20;
-                const maxY = window.innerHeight - rect.height - 20;
-
-                this.el.style.left = Math.min(x, maxX) + 'px';
-                this.el.style.top = Math.min(y, maxY) + 'px';
             },
             hide() {
                 if (this.el) this.el.style.display = 'none';
@@ -3052,6 +3224,7 @@ function renderHistoryView(container) {
 // Check on load and resize
 window.addEventListener('resize', checkToolbarLayout);
 checkToolbarLayout();
+initTabsResize();
 </script>
     </body>
     </html>`;
