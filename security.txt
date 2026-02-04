@@ -1,4 +1,4 @@
 Contact: https://github.com/infinition/AcidSnip/issues
-Expires: 2027-01-24T15:23:11.000Z
+Expires: 2027-02-04T05:05:57.000Z
 Preferred-Languages: en, fr
 Policy: https://github.com/infinition/AcidSnip/blob/wiki/SECURITY.md
