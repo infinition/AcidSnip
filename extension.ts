@@ -25,6 +25,12 @@ interface Settings {
     tabsPanelWidth: number;
     commandHistoryLimit: number;
     clipboardHistoryLimit: number;
+    swapSidebars: boolean;
+}
+
+interface CommandHistoryEntry {
+    command: string;
+    source: 'acidsnip' | 'terminal';
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -61,6 +67,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         private readonly _context: vscode.ExtensionContext
     ) {
         this._startClipboardWatcher();
+        this._startTerminalWatcher();
     }
 
     private _lastClipboardText: string = '';
@@ -78,6 +85,26 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         }, 1000);
     }
 
+    private _startTerminalWatcher() {
+        // Listen to terminal shell execution end events (VS Code 1.93+)
+        // Requires shell integration to be enabled in the terminal
+        if (vscode.window.onDidEndTerminalShellExecution) {
+            const disposable = vscode.window.onDidEndTerminalShellExecution((event) => {
+                try {
+                    const commandLine = event.execution.commandLine;
+                    if (commandLine && commandLine.value && commandLine.value.trim()) {
+                        this._addToCommandHistory(commandLine.value.trim(), 'terminal');
+                    }
+                } catch (e) {
+                    console.error('AcidSnip: Error capturing terminal command', e);
+                }
+            });
+            this._context.subscriptions.push(disposable);
+        } else {
+            console.log('AcidSnip: Terminal shell execution API not available. Terminal history requires VS Code 1.93+ with shell integration enabled.');
+        }
+    }
+
     private async _addToClipboardHistory(text: string) {
         const settings = await this.getStoredSettings();
         let history: string[] = this._context.globalState.get('clipboardHistory', []);
@@ -90,11 +117,14 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         this._view?.webview.postMessage({ type: 'loadHistory', clipboardHistory: history });
     }
 
-    private async _addToCommandHistory(command: string) {
+    private async _addToCommandHistory(command: string, source: 'acidsnip' | 'terminal' = 'acidsnip') {
         const settings = await this.getStoredSettings();
-        let history: string[] = this._context.globalState.get('commandHistory', []);
-        history = history.filter(h => h !== command);
-        history.unshift(command);
+        let history: CommandHistoryEntry[] = this._context.globalState.get('commandHistory', []);
+        // Migrate old format (string[]) to new format (CommandHistoryEntry[])
+        history = history.map(h => typeof h === 'string' ? { command: h, source: 'acidsnip' as const } : h);
+        // Remove duplicates by command
+        history = history.filter(h => h.command !== command);
+        history.unshift({ command, source });
         if (history.length > settings.commandHistoryLimit) {
             history = history.slice(0, settings.commandHistoryLimit);
         }
@@ -178,7 +208,8 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                                 tabsPosition: 'top',
                                 tabsPanelWidth: 180,
                                 commandHistoryLimit: 20,
-                                clipboardHistoryLimit: 20
+                                clipboardHistoryLimit: 20,
+                                swapSidebars: false
                             };
                             const items = configData.items || [];
                             const settings = { ...defaultSettings, ...configData.settings };
@@ -335,7 +366,8 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             tabsPosition: 'top',
             tabsPanelWidth: 180,
             commandHistoryLimit: 20,
-            clipboardHistoryLimit: 20
+            clipboardHistoryLimit: 20,
+            swapSidebars: false
         };
         const config = await this.readConfigFromFile();
         // Get configFilePath from globalState (not from file)
@@ -356,7 +388,9 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
     }
 
     private sendHistory() {
-        const commandHistory = this._context.globalState.get('commandHistory', []);
+        let commandHistory: CommandHistoryEntry[] = this._context.globalState.get('commandHistory', []);
+        // Migrate old format (string[]) to new format (CommandHistoryEntry[])
+        commandHistory = commandHistory.map(h => typeof h === 'string' ? { command: h, source: 'acidsnip' as const } : h);
         const clipboardHistory = this._context.globalState.get('clipboardHistory', []);
         this._view?.webview.postMessage({ type: 'loadHistory', commandHistory, clipboardHistory });
     }
@@ -753,13 +787,6 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             border-bottom: 2px solid transparent; flex-shrink: 0;
         }
         .execution-toggle-btn:hover { opacity: 1; background-color: var(--vscode-list-hoverBackground); }
-        
-        .settings-btn {
-            padding: 5px 10px; cursor: pointer; opacity: 0.7; font-size: 14px;
-            user-select: none; display: flex; align-items: center; justify-content: center;
-            border-bottom: 2px solid transparent; flex-shrink: 0; margin-left: auto;
-        }
-        .settings-btn:hover { opacity: 1; background-color: var(--vscode-list-hoverBackground); }
 
         .drop-indicator {
             position: absolute;
@@ -803,10 +830,11 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 0; gap: 12px; flex-shrink: 0;
             transition: all 0.2s ease;
             position: relative;
+            z-index: 100;
         }
-        .sidebar-left { border-right: 1px solid var(--vscode-sideBar-border); cursor: pointer; }
+        .sidebar-left { border-right: 1px solid var(--vscode-sideBar-border); cursor: pointer; order: 0; }
         .sidebar-left:hover { background-color: rgba(255, 255, 255, 0.03); }
-        .sidebar-right { border-left: 1px solid var(--vscode-sideBar-border); }
+        .sidebar-right { border-left: 1px solid var(--vscode-sideBar-border); order: 2; }
         .sidebar-right.horizontal {
             width: 100%;
             height: 44px;
@@ -817,6 +845,15 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             gap: 12px;
             justify-content: center;
         }
+        /* Swap sidebars mode */
+        body.swap-sidebars .sidebar-left { order: 2; border-right: none; border-left: 1px solid var(--vscode-sideBar-border); }
+        body.swap-sidebars .sidebar-right { order: 0; border-left: none; border-right: 1px solid var(--vscode-sideBar-border); }
+        body.swap-sidebars .main-container { order: 1; }
+        body.swap-sidebars .side-add-menu { left: auto; right: 38px; transform: translateX(5px); }
+        body.swap-sidebars .side-add-container:hover .side-add-menu { transform: translateX(0); }
+        body.swap-sidebars .side-add-menu::before { left: auto; right: -15px; }
+        body.swap-sidebars .side-add-item::after { left: auto; right: 40px; }
+        body.swap-sidebars .sidebar-right .side-btn::after { left: 40px; right: auto; }
 
         .side-add-container {
             position: relative;
@@ -909,6 +946,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             pointer-events: none;
             transition: opacity 0.2s;
             border: 1px solid var(--vscode-widget-border);
+            z-index: 5000;
         }
         .side-add-item:hover::after {
             opacity: 1;
@@ -923,6 +961,30 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .side-btn:hover { opacity: 1; background-color: var(--vscode-list-hoverBackground); transform: scale(1.1); }
         .side-btn.primary { background-color: var(--vscode-button-background); color: var(--vscode-button-foreground); opacity: 1; }
         .side-btn.primary:hover { background-color: var(--vscode-button-hoverBackground); }
+        
+        /* Custom tooltips for side buttons */
+        .side-btn::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            background-color: var(--vscode-editorWidget-background);
+            color: var(--vscode-foreground);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            border: 1px solid var(--vscode-widget-border);
+            z-index: 5000;
+        }
+        .sidebar-left .side-btn::after { left: 40px; right: auto; }
+        .sidebar-right .side-btn::after { right: 40px; left: auto; }
+        .side-btn:hover::after { opacity: 1; }
+        /* Swap sidebars: invert tooltip positions */
+        body.swap-sidebars .sidebar-left .side-btn::after { left: auto; right: 40px; }
+        body.swap-sidebars .sidebar-right .side-btn::after { right: auto; left: 40px; }
+        
         .side-spacer { flex: 1; }
         
         /* Horizontal toolbar mode when viewport is too short */
@@ -1062,12 +1124,13 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .color-preview { width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--vscode-widget-border); }
         .settings-section { margin-bottom: 15px; }
         .settings-section h4 { margin: 0 0 10px 0; font-size: 12px; opacity: 0.8; }
-        .toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-        .toggle-switch { width: 36px; height: 20px; background: var(--vscode-input-background); border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; }
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 11px; }
+        .toggle-row span { flex: 1; }
+        .toggle-switch { width: 32px; height: 18px; background: var(--vscode-input-background); border-radius: 9px; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
         .toggle-switch.active { background: var(--vscode-button-background); }
-        .toggle-switch::after { content: ''; position: absolute; width: 16px; height: 16px; background: var(--vscode-foreground); border-radius: 50%; top: 2px; left: 2px; transition: left 0.2s; }
-        .toggle-switch.active::after { left: 18px; }
-        .path-display { font-size: 11px; opacity: 0.7; word-break: break-all; padding: 5px; background: var(--vscode-input-background); border-radius: 2px; margin-top: 5px; }
+        .toggle-switch::after { content: ''; position: absolute; width: 14px; height: 14px; background: var(--vscode-foreground); border-radius: 50%; top: 2px; left: 2px; transition: left 0.2s; }
+        .toggle-switch.active::after { left: 16px; }
+        .path-display { font-size: 9px; opacity: 0.7; word-break: break-all; padding: 4px; background: var(--vscode-input-background); border-radius: 2px; margin-top: 5px; max-height: 40px; overflow-y: auto; }
         
         .modal-preview-label {
             font-size: 10px;
@@ -1094,12 +1157,19 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         }
         
         /* Settings Tabs */
-        .settings-tabs { display: flex; border-bottom: 1px solid var(--vscode-widget-border); margin-bottom: 15px; gap: 10px; }
-        .settings-tab { padding: 5px 10px; cursor: pointer; opacity: 0.6; font-size: 12px; border-bottom: 2px solid transparent; }
+        .settings-tabs { display: flex; border-bottom: 1px solid var(--vscode-widget-border); margin-bottom: 10px; gap: 0; }
+        .settings-tab { padding: 4px 8px; cursor: pointer; opacity: 0.6; font-size: 10px; border-bottom: 2px solid transparent; flex: 1; text-align: center; }
         .settings-tab.active { opacity: 1; border-bottom-color: var(--vscode-activityBarBadge-background); font-weight: bold; }
-        .settings-content { display: none; }
+        .settings-content { display: none; max-height: calc(100vh - 180px); overflow-y: auto; }
         .settings-content.active { display: block; }
-        .settings-footer { display: flex; justify-content: flex-end; margin-top: 15px; }
+        .settings-footer { display: flex; justify-content: flex-end; margin-top: 10px; }
+        
+        /* Settings modal */
+        .settings-modal { max-width: 280px; padding: 12px; display: flex; flex-direction: column; max-height: calc(100vh - 40px); }
+        .settings-modal h3 { font-size: 12px; margin: 0 0 8px 0; }
+        .settings-modal label { font-size: 10px; margin-bottom: 2px; }
+        .settings-modal input, .settings-modal select { font-size: 11px; padding: 4px 6px; }
+        .settings-modal .modal-btn { font-size: 10px; padding: 4px 10px; }
         
         .history-tabs { display: flex; border-bottom: 1px solid var(--vscode-widget-border); margin-bottom: 10px; gap: 10px; }
         .history-tab { padding: 5px 10px; cursor: pointer; opacity: 0.6; font-size: 12px; border-bottom: 2px solid transparent; }
@@ -1115,6 +1185,10 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         }
         .history-item:hover { background: var(--vscode-list-hoverBackground); }
         .history-item.copied { border-left-color: #22c55e; }
+        .history-source-icon { 
+            display: flex; align-items: center; justify-content: center; 
+            width: 16px; height: 16px; flex-shrink: 0; margin-right: 4px;
+        }
         .history-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; }
         .history-item-actions { display: none; gap: 4px; }
         .history-item:hover .history-item-actions { display: flex; }
@@ -1150,13 +1224,18 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         .version-box:hover { border-color: var(--vscode-focusBorder); transform: scale(1.05); }
         .version-box.outdated { border-color: #f97316; }
         .version-box.current { border-color: #22c55e; }
-        .repo-list { max-height: 300px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--vscode-widget-border); border-radius: 4px; scrollbar-width: none; -ms-overflow-style: none; }
-        .repo-item { padding: 8px 12px; border-bottom: 1px solid var(--vscode-widget-border); cursor: pointer; transition: background 0.2s; }
+        .repo-list { max-height: 150px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--vscode-widget-border); border-radius: 4px; scrollbar-width: none; -ms-overflow-style: none; flex-shrink: 1; min-height: 50px; }
+        .repo-item { padding: 6px 8px; border-bottom: 1px solid var(--vscode-widget-border); cursor: pointer; transition: background 0.2s; }
         .repo-item:last-child { border-bottom: none; }
         .repo-item:hover { background: var(--vscode-list-hoverBackground); }
-        .repo-name { font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 5px; }
-        .repo-desc { font-size: 11px; opacity: 0.7; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .repo-meta { font-size: 10px; opacity: 0.5; margin-top: 4px; display: flex; gap: 10px; }
+        .repo-name { font-weight: bold; font-size: 11px; display: flex; align-items: center; gap: 5px; word-break: break-word; }
+        .repo-desc { font-size: 10px; opacity: 0.7; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+        .repo-meta { font-size: 9px; opacity: 0.5; margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+        
+        /* GitHub modal responsive */
+        .github-modal { max-width: 320px; display: flex; flex-direction: column; max-height: calc(100vh - 40px); }
+        .github-modal h3 { font-size: 13px; margin-bottom: 10px; flex-shrink: 0; }
+        .github-modal .modal-buttons { flex-shrink: 0; }
         
         .rich-tooltip {
             position: fixed;
@@ -1256,7 +1335,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
     <div id="drop-indicator" class="drop-indicator"></div>
-    <div class="sidebar sidebar-left" onclick="if(event.target === this) toggleAllFolders()">
+    <div class="sidebar sidebar-left" id="sidebar-left" onclick="if(event.target === this) toggleAllFolders()">
         <div class="side-add-container">
             <button class="side-add-btn" title="Add New...">+</button>
             <div class="side-add-menu">
@@ -1268,16 +1347,15 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
         <div class="side-spacer"></div>
-        <button class="side-btn" onclick="openHistory()" title="History">🕒</button>
+        <button class="side-btn" onclick="openHistory()" data-tooltip="History">🕒</button>
         <div class="side-spacer"></div>
-        <button class="side-btn" onclick="toggleSearch()" title="Search" id="search-btn">🔍</button>
+        <button class="side-btn" onclick="toggleSearch()" data-tooltip="Search" id="search-btn">🔍</button>
     </div>
     <div class="main-container" id="main-container">
         <div class="tabs-wrapper" id="tabs-wrapper">
             <div class="execution-toggle-btn" id="execution-toggle" onclick="toggleExecutionMode()">💻</div>
             <div class="tabs-container" id="tabs-container"></div>
             <div class="overflow-btn" id="overflow-btn" onclick="toggleOverflowMenu()" ondragenter="toggleOverflowMenu()" title="Show all tabs">⌄</div>
-            <div class="settings-btn" id="settings-btn" onclick="openSettings()" title="Settings">⚙️</div>
             <div class="overflow-menu" id="overflow-menu"></div>
         </div>
         <div class="tabs-resize-handle" id="tabs-resize-handle" title="Redimensionner le volet des onglets"></div>
@@ -1291,11 +1369,13 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             <div class="content" id="content"></div>
         </div>
     </div>
-    <div class="sidebar sidebar-right">
-        <button class="side-btn" onclick="cdToActiveFile()" title="CD to Explorer Selection">📂</button>
-        <button class="side-btn" id="reload-btn" onclick="reloadExtensions()" title="Reload Extensions" style="display: none;">🔄</button>
-        <button class="side-btn" id="version-btn" onclick="checkVersion()" title="Check Version" style="display: none;">📦</button>
-        <button class="side-btn" id="github-btn" onclick="openGithubModal()" title="Download GitHub Repos">🐙</button>
+    <div class="sidebar sidebar-right" id="sidebar-right">
+        <button class="side-btn" onclick="cdToActiveFile()" data-tooltip="CD to Explorer">📂</button>
+        <button class="side-btn" id="reload-btn" onclick="reloadExtensions()" data-tooltip="Reload Extensions" style="display: none;">🔄</button>
+        <button class="side-btn" id="version-btn" onclick="checkVersion()" data-tooltip="Check Version" style="display: none;">📦</button>
+        <button class="side-btn" id="github-btn" onclick="openGithubModal()" data-tooltip="GitHub Repos">🐙</button>
+        <div class="side-spacer"></div>
+        <button class="side-btn" id="settings-btn" onclick="openSettings()" data-tooltip="Settings">⚙️</button>
     </div>
     <div class="modal-overlay" id="modal-overlay">
         <div class="modal">
@@ -1308,69 +1388,74 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         </div>
     </div>
     <div class="modal-overlay" id="settings-overlay" onclick="if(event.target === this) closeSettings()">
-        <div class="modal" style="max-width: 300px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
-                <span style="font-size: 16px;">⚙️</span>
-                <h3 style="margin: 0;">Settings</h3>
-            </div>
+        <div class="modal settings-modal">
+            <h3>⚙️ Settings</h3>
             
             <div class="settings-tabs">
-                <div class="settings-tab active" onclick="switchSettingsTab('display')" id="tab-display">Display</div>
+                <div class="settings-tab active" onclick="switchSettingsTab('ui')" id="tab-ui">UI</div>
+                <div class="settings-tab" onclick="switchSettingsTab('features')" id="tab-features">Features</div>
                 <div class="settings-tab" onclick="switchSettingsTab('config')" id="tab-config">Config</div>
             </div>
 
-            <div id="settings-display" class="settings-content active">
-                <div style="margin-bottom: 10px;">
+            <div id="settings-ui" class="settings-content active">
+                <div style="margin-bottom: 8px;">
                     <label>Tabs position</label>
-                    <select id="tabs-position-select" onchange="updateTabsPosition(this.value)" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--vscode-dropdown-background); color: var(--vscode-foreground); border: 1px solid var(--vscode-widget-border); border-radius: 4px;">
-                        <option value="top">Top (horizontal)</option>
-                        <option value="left">Left (vertical)</option>
-                        <option value="right">Right (vertical)</option>
+                    <select id="tabs-position-select" onchange="updateTabsPosition(this.value)" style="width: 100%; margin-top: 2px;">
+                        <option value="top">Top</option>
+                        <option value="left">Left</option>
+                        <option value="right">Right</option>
                     </select>
                 </div>
                 <div class="toggle-row">
-                    <span>Reload Button</span>
-                    <div class="toggle-switch" id="toggle-reload" onclick="toggleReloadButton()"></div>
+                    <span>Swap Sidebars</span>
+                    <div class="toggle-switch" id="toggle-swap-sidebars" onclick="toggleSwapSidebars()"></div>
+                </div>
+                <div class="toggle-row">
+                    <span>Rich Tooltips</span>
+                    <div class="toggle-switch" id="toggle-rich-tooltips" onclick="toggleRichTooltips()"></div>
                 </div>
                 <div class="toggle-row">
                     <span>Confirm Delete</span>
                     <div class="toggle-switch" id="toggle-confirm-delete" onclick="toggleConfirmDelete()"></div>
                 </div>
+            </div>
+
+            <div id="settings-features" class="settings-content">
                 <div class="toggle-row">
-                    <span>GitHub Button</span>
-                    <div class="toggle-switch" id="toggle-github" onclick="toggleGithubButton()"></div>
-                </div>
-                <div style="margin-top: 10px;">
-                    <label>GitHub User</label>
-                    <input type="text" id="github-username-input" placeholder="e.g. microsoft" onchange="updateGithubUsername(this.value)">
+                    <span>Reload Button</span>
+                    <div class="toggle-switch" id="toggle-reload" onclick="toggleReloadButton()"></div>
                 </div>
                 <div class="toggle-row">
                     <span>Version Checker</span>
                     <div class="toggle-switch" id="toggle-version-checker" onclick="toggleVersionChecker()"></div>
                 </div>
                 <div class="toggle-row">
-                    <span>Rich Tooltips</span>
-                    <div class="toggle-switch" id="toggle-rich-tooltips" onclick="toggleRichTooltips()"></div>
+                    <span>GitHub Button</span>
+                    <div class="toggle-switch" id="toggle-github" onclick="toggleGithubButton()"></div>
                 </div>
-                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                <div style="margin-top: 6px;">
+                    <label>GitHub User</label>
+                    <input type="text" id="github-username-input" placeholder="username" onchange="updateGithubUsername(this.value)" style="margin-top: 2px;">
+                </div>
+                <div style="margin-top: 8px; display: flex; gap: 6px;">
                     <div style="flex: 1;">
-                        <label>Cmd Limit</label>
-                        <input type="number" id="cmd-limit-input" min="1" max="100" onchange="updateHistoryLimits()">
+                        <label>Cmd History</label>
+                        <input type="number" id="cmd-limit-input" min="1" max="100" onchange="updateHistoryLimits()" style="margin-top: 2px;">
                     </div>
                     <div style="flex: 1;">
-                        <label>Clip Limit</label>
-                        <input type="number" id="clip-limit-input" min="1" max="100" onchange="updateHistoryLimits()">
+                        <label>Clip History</label>
+                        <input type="number" id="clip-limit-input" min="1" max="100" onchange="updateHistoryLimits()" style="margin-top: 2px;">
                     </div>
                 </div>
             </div>
 
             <div id="settings-config" class="settings-content">
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <button class="modal-btn" onclick="exportConfig()" style="width: 100%;">📤 Export</button>
-                    <button class="modal-btn secondary" onclick="importConfig()" style="width: 100%;">📥 Import</button>
-                    <button class="modal-btn secondary" onclick="selectConfigPath()" style="width: 100%;">📁 Select File</button>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button class="modal-btn" onclick="exportConfig()" style="flex: 1; min-width: 70px;">📤 Export</button>
+                    <button class="modal-btn secondary" onclick="importConfig()" style="flex: 1; min-width: 70px;">📥 Import</button>
                 </div>
-                <div class="path-display" id="config-path-display" style="margin-top: 10px; font-size: 10px;">No config file selected</div>
+                <button class="modal-btn secondary" onclick="selectConfigPath()" style="width: 100%; margin-top: 6px;">📁 Select Config File</button>
+                <div class="path-display" id="config-path-display">No config file selected</div>
             </div>
 
             <div class="settings-footer">
@@ -1378,48 +1463,48 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
     </div>
-    <div class="modal-overlay" id="github-overlay">
-        <div class="modal" style="max-width: 400px;">
-            <h3>🐙 Download GitHub Repos</h3>
-            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                <input type="text" id="github-search-user" placeholder="Enter GitHub username..." style="margin-bottom: 0;">
+    <div class="modal-overlay" id="github-overlay" onclick="if(event.target === this) closeGithubModal()">
+        <div class="modal github-modal">
+            <h3>🐙 GitHub Repos</h3>
+            <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; flex-shrink: 0;">
+                <input type="text" id="github-search-user" placeholder="GitHub username..." style="margin-bottom: 0; flex: 1; min-width: 100px;">
                 <button class="modal-btn" onclick="fetchRepos()">Fetch</button>
             </div>
-            <div id="github-status" style="font-size: 11px; opacity: 0.7; margin-bottom: 5px;"></div>
+            <div id="github-status" style="font-size: 11px; opacity: 0.7; margin-bottom: 5px; flex-shrink: 0;"></div>
             <div class="repo-list" id="repo-list">
                 <div style="padding: 20px; text-align: center; opacity: 0.5;">Enter a username to see repositories</div>
             </div>
-            <div class="modal-buttons" style="margin-top: 15px;">
+            <div class="modal-buttons" style="margin-top: 10px;">
                 <button class="modal-btn secondary" onclick="closeGithubModal()">Close</button>
             </div>
         </div>
     </div>
-    <div class="modal-overlay" id="version-overlay">
-        <div class="modal" style="max-width: 350px; text-align: center;">
+    <div class="modal-overlay" id="version-overlay" onclick="if(event.target === this) closeVersionModal()">
+        <div class="modal" style="max-width: 320px; text-align: center;">
             <h3>📦 Version Info</h3>
             <div id="version-loading" style="padding: 20px;">Loading...</div>
             <div id="version-content" style="display: none;">
-                <div id="version-project" style="font-weight: bold; font-size: 16px; margin-bottom: 15px;"></div>
-                <div style="display: flex; justify-content: space-around; gap: 15px;">
-                    <div class="version-box" onclick="copyVersion('local')" title="Click to copy">
-                        <div style="font-size: 11px; opacity: 0.7;">LOCAL</div>
-                        <div id="version-local" style="font-size: 18px; font-weight: bold; cursor: pointer;">-</div>
+                <div id="version-project" style="font-weight: bold; font-size: 14px; margin-bottom: 10px;"></div>
+                <div style="display: flex; justify-content: space-around; gap: 10px;">
+                    <div class="version-box" onclick="copyVersion('local')" title="Click to copy" style="padding: 10px 15px;">
+                        <div style="font-size: 10px; opacity: 0.7;">LOCAL</div>
+                        <div id="version-local" style="font-size: 16px; font-weight: bold; cursor: pointer;">-</div>
                     </div>
-                    <div style="display: flex; align-items: center; font-size: 24px;" id="version-status">⟷</div>
-                    <div class="version-box" onclick="copyVersion('remote')" title="Click to copy">
-                        <div style="font-size: 11px; opacity: 0.7;">REMOTE</div>
-                        <div id="version-remote" style="font-size: 18px; font-weight: bold; cursor: pointer;">-</div>
+                    <div style="display: flex; align-items: center; font-size: 20px;" id="version-status">⟷</div>
+                    <div class="version-box" onclick="copyVersion('remote')" title="Click to copy" style="padding: 10px 15px;">
+                        <div style="font-size: 10px; opacity: 0.7;">REMOTE</div>
+                        <div id="version-remote" style="font-size: 16px; font-weight: bold; cursor: pointer;">-</div>
                     </div>
                 </div>
-                <div id="version-repo" style="margin-top: 15px; font-size: 11px; opacity: 0.7; word-break: break-all;"></div>
+                <div id="version-repo" style="margin-top: 10px; font-size: 10px; opacity: 0.7; word-break: break-all;"></div>
             </div>
-            <div class="modal-buttons" style="margin-top: 15px; justify-content: center;">
+            <div class="modal-buttons" style="margin-top: 10px; justify-content: center;">
                 <button class="modal-btn secondary" onclick="closeVersionModal()">Close</button>
-                <button class="modal-btn" onclick="checkVersion()">🔄 Refresh</button>
+                <button class="modal-btn" onclick="checkVersion()">🔄</button>
             </div>
         </div>
     </div>
-    <div class="modal-overlay" id="color-picker-overlay">
+    <div class="modal-overlay" id="color-picker-overlay" onclick="if(event.target === this) closeColorPicker()">
         <div class="modal" style="max-width: 250px;">
             <h3>🎨 Choose Color</h3>
             <div class="color-picker-row">
@@ -1446,10 +1531,10 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
     </div>
-    <div class="modal-overlay" id="confirm-overlay">
-        <div class="modal" style="max-width: 280px; text-align: center;">
+    <div class="modal-overlay" id="confirm-overlay" onclick="if(event.target === this) confirmNo()">
+        <div class="modal" style="max-width: 260px; text-align: center;">
             <h3>⚠️ Confirm Delete</h3>
-            <p id="confirm-message" style="margin: 15px 0;">Are you sure?</p>
+            <p id="confirm-message" style="margin: 10px 0; font-size: 12px;">Are you sure?</p>
             <div class="modal-buttons" style="justify-content: center;">
                 <button class="modal-btn secondary" onclick="confirmNo()">Cancel</button>
                 <button class="modal-btn" onclick="confirmYes()" style="background: #ef4444;">Delete</button>
@@ -1467,7 +1552,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
         let colorPickerItemId = null;
         let confirmCallback = null;
         let searchMode = false;
-        let settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, executionMode: 'terminal', tabsPosition: 'top', tabsPanelWidth: 180, commandHistoryLimit: 20, clipboardHistoryLimit: 20 };
+        let settings = { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, executionMode: 'terminal', tabsPosition: 'top', tabsPanelWidth: 180, commandHistoryLimit: 20, clipboardHistoryLimit: 20, swapSidebars: false };
         let commandHistory = [];
         let clipboardHistory = [];
 
@@ -1527,7 +1612,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
                     render();
                     break;
                 case 'loadSettings':
-                    settings = message.settings || { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, githubUsername: '', showGithubButton: true, executionMode: 'terminal', enableRichTooltips: true, tabsPosition: 'top', tabsPanelWidth: 180, commandHistoryLimit: 20, clipboardHistoryLimit: 20 };
+                    settings = message.settings || { showReloadButton: false, configFilePath: '', confirmDelete: false, showVersionChecker: false, githubUsername: '', showGithubButton: true, executionMode: 'terminal', enableRichTooltips: true, tabsPosition: 'top', tabsPanelWidth: 180, commandHistoryLimit: 20, clipboardHistoryLimit: 20, swapSidebars: false };
                     updateSettingsUI();
                     break;
                 case 'loadHistory':
@@ -1556,6 +1641,7 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             const toggleConfirmDelete = document.getElementById('toggle-confirm-delete');
             const toggleVersionChecker = document.getElementById('toggle-version-checker');
             const toggleRichTooltips = document.getElementById('toggle-rich-tooltips');
+            const toggleSwapSidebars = document.getElementById('toggle-swap-sidebars');
             const pathDisplay = document.getElementById('config-path-display');
             
             if (reloadBtn) reloadBtn.style.display = settings.showReloadButton ? 'flex' : 'none';
@@ -1564,7 +1650,11 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             if (toggleConfirmDelete) toggleConfirmDelete.classList.toggle('active', settings.confirmDelete);
             if (toggleVersionChecker) toggleVersionChecker.classList.toggle('active', settings.showVersionChecker);
             if (toggleRichTooltips) toggleRichTooltips.classList.toggle('active', settings.enableRichTooltips);
+            if (toggleSwapSidebars) toggleSwapSidebars.classList.toggle('active', settings.swapSidebars);
             if (pathDisplay) pathDisplay.textContent = settings.configFilePath || 'No config file selected';
+            
+            // Apply swap sidebars
+            document.body.classList.toggle('swap-sidebars', settings.swapSidebars);
             
             const githubBtn = document.getElementById('github-btn');
             const toggleGithub = document.getElementById('toggle-github');
@@ -1655,6 +1745,12 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
 
         function toggleRichTooltips() {
             settings.enableRichTooltips = !settings.enableRichTooltips;
+            vscode.postMessage({ type: 'saveSettings', settings });
+            updateSettingsUI();
+        }
+
+        function toggleSwapSidebars() {
+            settings.swapSidebars = !settings.swapSidebars;
             vscode.postMessage({ type: 'saveSettings', settings });
             updateSettingsUI();
         }
@@ -1833,16 +1929,23 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             }
 
             let hasHiddenTabs = false;
+            const isVertical = settings.tabsPosition === 'left' || settings.tabsPosition === 'right';
 
             tabs.forEach(tab => {
                 // Find the tab element in the main bar
                 const tabEl = Array.from(container.children).find(el => el.innerText === tab.name && el.classList.contains('tab'));
                 
-                // Check visibility
+                // Check visibility based on orientation
                 let isVisible = false;
                 if (tabEl) {
                     const rect = tabEl.getBoundingClientRect();
-                    isVisible = (rect.left >= containerRect.left && rect.right <= containerRect.right);
+                    if (isVertical) {
+                        // Vertical mode: check top/bottom bounds
+                        isVisible = (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom);
+                    } else {
+                        // Horizontal mode: check left/right bounds
+                        isVisible = (rect.left >= containerRect.left && rect.right <= containerRect.right);
+                    }
                 }
 
                 if (!isVisible) {
@@ -2358,6 +2461,38 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             save(); render();
         }
 
+        function promptAddFromHistory(command) {
+            // Generate a default name from the command (first word or first 20 chars)
+            const firstWord = command.split(/\\s+/)[0];
+            const defaultName = firstWord.length > 20 ? firstWord.substring(0, 20) + '...' : firstWord;
+            
+            // Show a quick picker for snippet type
+            showModal('Add from History', [
+                { id: 'type', label: 'Type', type: 'select', options: [
+                    { value: 'snippet', label: '📄 Snippet' },
+                    { value: 'smart', label: '⚡ Smart Snippet' }
+                ]},
+                { id: 'name', label: 'Name', value: defaultName, placeholder: 'Snippet name' },
+                { id: 'command', label: 'Command', value: command, type: 'textarea' },
+                { id: 'description', label: 'Description', placeholder: 'Optional description...', type: 'textarea' }
+            ], (data) => {
+                items.push({ 
+                    id: Date.now().toString(), 
+                    name: data.name || defaultName, 
+                    command: data.command, 
+                    description: data.description, 
+                    type: 'snippet', 
+                    parentId: activeTabId === 'root' || activeTabId === 'history' ? undefined : activeTabId 
+                });
+                save(); 
+                // Switch back to the appropriate tab
+                if (activeTabId === 'history') {
+                    activeTabId = items.some(i => isRootItem(i) && i.type !== 'tab') ? 'root' : (items.find(i => i.type === 'tab')?.id || 'root');
+                }
+                render();
+            });
+        }
+
         function editItem(id) {
             const item = items.find(i => i.id === id);
             if (item.type === 'tab') {
@@ -2415,6 +2550,24 @@ class SnippetViewProvider implements vscode.WebviewViewProvider {
             fields.forEach(f => {
                 const label = document.createElement('label');
                 label.innerText = f.label;
+                
+                // Handle select type differently
+                if (f.type === 'select') {
+                    const select = document.createElement('select');
+                    select.id = 'modal-input-' + f.id;
+                    select.style.cssText = 'width:100%;padding:6px;margin-bottom:8px;border:1px solid var(--vscode-input-border);background:var(--vscode-input-background);color:var(--vscode-input-foreground);border-radius:3px;';
+                    (f.options || []).forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt.value;
+                        option.innerText = opt.label;
+                        if (opt.value === f.value) option.selected = true;
+                        select.appendChild(option);
+                    });
+                    fieldsContainer.appendChild(label);
+                    fieldsContainer.appendChild(select);
+                    return;
+                }
+                
                 const inputContainer = document.createElement('div');
                 inputContainer.className = 'emoji-picker-container';
                 
@@ -2709,8 +2862,13 @@ function renderHistoryView(container) {
                         <div class="history-tab \${activeHistoryTab === 'commands' ? 'active' : ''}" onclick="switchHistoryTab('commands')">Commands</div>
                         <div class="history-tab \${activeHistoryTab === 'clipboard' ? 'active' : ''}" onclick="switchHistoryTab('clipboard')">Clipboard</div>
                     </div>
+                    <div class="history-legend" style="display: flex; gap: 10px; padding: 4px 8px; font-size: 10px; opacity: 0.7; border-bottom: 1px solid var(--vscode-panel-border);">
+                        <span title="Commands from AcidSnip snippets"><span class="codicon codicon-zap" style="color: var(--vscode-terminal-ansiYellow);"></span> AcidSnip</span>
+                        <span title="Commands from VS Code terminal (PowerShell/Bash only)"><span class="codicon codicon-terminal" style="color: var(--vscode-terminal-ansiGreen);"></span> Terminal*</span>
+                    </div>
                     <div id="hist-commands" class="history-list \${activeHistoryTab === 'commands' ? 'active' : ''}"></div>
                     <div id="hist-clipboard" class="history-list \${activeHistoryTab === 'clipboard' ? 'active' : ''}"></div>
+                    <div class="history-note" style="font-size: 9px; opacity: 0.5; padding: 4px 8px; text-align: center;">*Terminal history requires Shell Integration (PowerShell/Bash). CMD not supported.</div>
                 </div>
             \`;
             
@@ -2718,10 +2876,26 @@ function renderHistoryView(container) {
             const clipList = container.querySelector('#hist-clipboard');
 
             cmdList.innerHTML = commandHistory.length ? '' : '<div style="opacity: 0.5; padding: 10px; text-align: center; font-size: 11px;">No command history</div>';
-            commandHistory.forEach(cmd => {
+            commandHistory.forEach(entry => {
+                // Support both old format (string) and new format ({command, source})
+                const cmd = typeof entry === 'string' ? entry : entry.command;
+                const source = typeof entry === 'string' ? 'acidsnip' : (entry.source || 'acidsnip');
+                
                 const el = document.createElement('div');
                 el.className = 'history-item';
                 if (settings.executionMode === 'locked') el.style.opacity = '0.6';
+                
+                // Source icon
+                const sourceIcon = document.createElement('span');
+                sourceIcon.className = 'history-source-icon';
+                if (source === 'terminal') {
+                    sourceIcon.innerHTML = '<span class="codicon codicon-terminal" style="color: var(--vscode-terminal-ansiGreen);"></span>';
+                    sourceIcon.title = 'VS Code Terminal';
+                } else {
+                    sourceIcon.innerHTML = '<span class="codicon codicon-zap" style="color: var(--vscode-terminal-ansiYellow);"></span>';
+                    sourceIcon.title = 'AcidSnip';
+                }
+                el.appendChild(sourceIcon);
                 
                 const textEl = document.createElement('span');
                 textEl.className = 'history-item-text';
@@ -2729,9 +2903,23 @@ function renderHistoryView(container) {
                 textEl.title = cmd;
                 el.appendChild(textEl);
 
+                const actionsEl = document.createElement('div');
+                actionsEl.className = 'history-item-actions';
+
+                // Add as snippet button
+                const addBtn = document.createElement('button');
+                addBtn.className = 'history-action-btn';
+                addBtn.innerHTML = '➕';
+                addBtn.title = 'Add as snippet';
+                addBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    promptAddFromHistory(cmd);
+                };
+                actionsEl.appendChild(addBtn);
+
                 // Copy button
                 const copyBtn = document.createElement('button');
-                copyBtn.className = 'history-copy-btn';
+                copyBtn.className = 'history-action-btn';
                 copyBtn.innerHTML = '📋';
                 copyBtn.title = 'Copy to clipboard';
                 copyBtn.onclick = (e) => {
@@ -2740,7 +2928,8 @@ function renderHistoryView(container) {
                     copyBtn.innerHTML = '✓';
                     setTimeout(() => { copyBtn.innerHTML = '📋'; }, 1000);
                 };
-                el.appendChild(copyBtn);
+                actionsEl.appendChild(copyBtn);
+                el.appendChild(actionsEl);
 
                 el.onclick = () => {
                     if (settings.executionMode === 'locked') {
@@ -2765,6 +2954,17 @@ function renderHistoryView(container) {
 
                 const actionsEl = document.createElement('div');
                 actionsEl.className = 'history-item-actions';
+
+                // Add as snippet button
+                const addBtn = document.createElement('button');
+                addBtn.className = 'history-action-btn';
+                addBtn.innerHTML = '➕';
+                addBtn.title = 'Add as snippet';
+                addBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    promptAddFromHistory(text);
+                };
+                actionsEl.appendChild(addBtn);
                 
                 const insertBtn = document.createElement('button');
                 insertBtn.className = 'history-action-btn' + (settings.executionMode === 'locked' ? ' disabled' : '');
