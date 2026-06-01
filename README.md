@@ -1,169 +1,95 @@
-<img width="542" height="460" alt="Gemini_Generated_Image_h3tuwmh3tuwmh3tu-removebg-preview" src="https://github.com/user-attachments/assets/0dd974e7-497a-4c73-9d53-50850a804116" />
+<img width="542" height="460" alt="AcidSnip" src="https://github.com/user-attachments/assets/0dd974e7-497a-4c73-9d53-50850a804116" />
 
+# AcidSnip
 
-# AcidSnip  🚀
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white) [![Release](https://img.shields.io/github/v/release/infinition/AcidSnip?style=flat)](https://github.com/infinition/AcidSnip/releases) [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/infinition)
 
+A VS Code extension that adds a sidebar panel for storing, organizing, and executing terminal commands. Snippets support dynamic arguments, nested folders, tabs, and drag-and-drop reordering.
 
-**AcidSnip**  is a premium VS Code / Antigravity extension designed to revolutionize your terminal workflow. It provides a modern, highly interactive interface to store, organize, and execute your recurring commands with unparalleled speed and style.
-
----
-<img width="1178" height="644" alt="image" src="https://github.com/user-attachments/assets/97e6abb6-8644-4228-97d9-2047e4bb71af" />
-
-
-##  ✨ Key Features
-
-### 📑 Smart Tab System (New!)
-*   **Overflow Menu**: Automatically detects when tabs run out of space and provides a sleek chevron menu (⌄) to access hidden tabs.
-*   **Drag & Drop Magic**:
-    *   **Auto-Open**: Drag an item over a tab (or a hidden tab in the overflow menu) to instantly switch to it.
-    *   **Folder Expansion**: Hover over a collapsed folder while dragging to automatically pop it open.
-    *   **Smart Focus**: Dropping an item onto a hidden tab scrolls it into view so you never lose track.
-*   **Discrete Scrollbar**: A subtle horizontal scrollbar is available for manual navigation.
-
-### 🕒 Integrated History & Clipboard
-*   **Native History Tab**: Access your history directly as a dedicated tab in the main UI.
-*   **Command Tracking**: Automatically stores your last 20 executed commands.
-*   **Clipboard Monitoring**: Intelligently tracks your last 20 clipboard entries.
-*   **Interactive Actions**:
-    *   **📋 Quick Copy**: Hover over any command history item to reveal a discrete copy button.
-    *   **📥 Direct Insert**: Send clipboard content directly to your terminal or editor.
-    *   **Smart Toggle**: Click the history icon (🕒) again to instantly close it and return to your previous tab.
-
-### ⚙️ Refined UI & Settings
-*   **Anchored Controls**:
-    *   **Execution Mode (💻/🔒)**: Fixed to the far left for quick access.
-    *   **Settings (⚙️)**: Fixed to the far right, ensuring it's always visible.
-*   **Optimized Settings Menu**:
-    *   **Tabbed Interface**: Clean separation between Display and Config settings.
-    *   **Auto-Save**: Changes are saved automatically when you close the menu.
-    *   **Compact Design**: Perfectly sized for sidebars.
-
-### ⚡ Smart Snippets & Organization
-*   **Dynamic Arguments**: Use `{{arg$1:label}}` syntax to create interactive snippets.
-*   **Deep Organization**: Nested **Folders**, **Tabs**, and **Separators**.
-*   **Visual Customization**:
-    *   **HTML Color Picker**: Color-code your tabs and folders.
-    *   **Emoji Picker**: Find the perfect icon for your commands.
-
-### 🐙 GitHub Repository Downloader
-*   **Direct Integration**: Browse public repositories from any GitHub user.
-*   **One-Click Clone**: Instantly clone repositories into your workspace.
-*   **Smart Path Selection**: Reuses your explorer selection logic for the target directory.
-
-### 🔍 Intelligent Search
-*   **Real-Time Filtering**: Find snippets instantly as you type.
-*   **Visual Highlighting**: Search terms are highlighted for quick identification.
-
-### 🛠️ Advanced Utilities
-*   **CD to Explorer Selection**: Sync your terminal directory with your file selection.
-*   **Reload Extensions**: Quickly refresh your VS Code environment.
-*   **Version Checker**: Compare your local version with the latest GitHub release.
-*   **External Config**: Portable JSON configuration.
+<img width="1178" height="644" alt="AcidSnip interface" src="https://github.com/user-attachments/assets/97e6abb6-8644-4228-97d9-2047e4bb71af" />
 
 ---
 
-## 🗂️ Configuration & Storage Logic (Quick Overview)
+## Features
 
-AcidSnip uses a **dual-layer configuration system** designed to be both **simple by default** and **powerful when needed**.
+### Tab system
 
-### 🔹 Default Behavior (No File Selected)
+- Tabs with overflow menu when there are too many to display.
+- Drag an item over a tab to switch to it automatically.
+- Hover over a collapsed folder while dragging to expand it.
+- Subtle horizontal scrollbar for manual tab navigation.
 
-On first launch, **no configuration file is created**.
+### History and clipboard
 
-* All data is stored internally using VS Code’s `globalState`
-* This includes:
+- Dedicated History tab showing the last 20 executed commands and last 20 clipboard entries.
+- Hover over any history item to copy it or send it directly to the terminal.
+- Click the history icon again to close the panel and return to the previous tab.
 
-  * Snippets, folders, tabs, separators
-  * User settings
-* Storage is automatic, invisible, and persistent
-* No manual setup required
+### Snippets and organization
 
-➡️ **Just install and use — it works out of the box**
+- Dynamic arguments with `{{arg$1:label}}` syntax for interactive prompts.
+- Nested folders, tabs, and separators.
+- Color picker and emoji picker for visual organization.
+- Real-time search with match highlighting.
+
+### Utilities
+
+- CD to current Explorer selection.
+- GitHub repository browser with one-click clone.
+- Reload extensions shortcut.
+- Version checker against the latest GitHub release.
 
 ---
 
-### 📁 External Config File (Optional)
+## Storage
 
-You can optionally choose a JSON file to store your configuration.
+By default all data is stored in VS Code's `globalState`. No file is created and no setup is needed.
 
-* Open **Settings (⚙️) → Config → Select File**
-* Choose or create a file (e.g. `acidsnip-config.json`)
-* From this point on:
+To use an external file, open Settings (gear icon, top right) > Config > Select File. From that point on the JSON file is the source of truth. The file path itself is stored internally. History always stays in `globalState`.
 
-  * The JSON file becomes the **main source of truth**
-  * All changes are saved directly to this file
-  * `globalState` is kept as a safe fallback
-
-📄 File structure:
+Config file structure:
 
 ```json
 {
-  "items": [ ... ],
-  "settings": { ... }
+  "items": [],
+  "settings": {}
 }
 ```
 
-⚠️ Note:
-
-* The file path itself is stored internally (not inside the file)
-* History (commands & clipboard) always stays internal
+Export creates a portable snapshot without changing the active config. Import replaces current snippets and settings from a file.
 
 ---
 
-### 📤 Export
+## Usage
 
-Creates a **portable snapshot** of your current configuration.
-
-* Does **not** change the active config file
-* Ideal for:
-
-  * Backups
-  * Sharing configs
-  * Versioning with Git
+1. Click the AcidSnip icon in the Activity Bar to open the sidebar.
+2. Add snippets, folders, tabs, or separators with the toolbar buttons.
+3. Click a snippet to run it. Enable Locked Mode (lock icon) to prevent accidental execution.
+4. Drag items to reorder. Hover over folders or overflow tabs while dragging to navigate.
+5. Click the clock icon to open history. Click it again to close.
 
 ---
 
-### 📥 Import
+## Technical
 
-Loads a configuration from a JSON file.
-
-* Replaces the current snippets & settings
-* Writes to:
-
-  * The selected config file (if one is set)
-  * Otherwise, internal storage
+- Built with `WebviewViewProvider` for a fully custom UI.
+- Storage: external JSON with `globalState` fallback.
+- Fully theme-aware using VS Code CSS variables.
 
 ---
 
-### 🧠 Summary
+## Star History
 
-* **No file selected** → internal storage (`globalState`)
-* **File selected** → external JSON file
-* **Export** → copy only
-* **Import** → overwrite current config
-
-
----
-
-
-## 📖 How to Use
-
-1.  **Open AcidSnip**: Click the terminal icon in the Activity Bar.
-2.  **Organize**: Use the sidebar buttons to add Snippets, Folders, Tabs, or Separators.
-3.  **Drag & Drop**: Move items freely. Hover over folders to expand them, or drag to the overflow menu to reach hidden tabs.
-4.  **Execute**: Click a snippet to run it. Use **Locked Mode (🔒)** to prevent accidents.
-5.  **History**: Click the 🕒 icon to view history. Click it again to close.
-6.  **Settings**: Click the ⚙️ icon on the right to customize your experience.
+<a href="https://www.star-history.com/?repos=infinition%2FAcidSnip&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=infinition/AcidSnip&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=infinition/AcidSnip&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=infinition/AcidSnip&type=date&legend=top-left" />
+ </picture>
+</a>
 
 ---
 
-## ⚙️ Technical Specifications
+## License
 
-*   **Engine**: Built with `WebviewViewProvider` for a premium, custom UI experience.
-*   **Storage**: External JSON files with `globalState` fallback.
-*   **Design**: Fully theme-aware, using VS Code CSS variables.
-*   **Responsive**: Adaptive layout with smart overflow handling.
-
----
-
-> **AcidSnip**: Your commands, your style, your speed.
+MIT. See [LICENSE](LICENSE).
