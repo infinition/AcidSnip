@@ -1,4 +1,4 @@
-<img width="542" height="460" alt="AcidSnip" src="https://github.com/user-attachments/assets/0dd974e7-497a-4c73-9d53-50850a804116" />
+<img width="302" height="302" alt="image-removebg-preview (15)" src="https://github.com/user-attachments/assets/4e56aeba-8263-47cc-b7d7-5731426546d4" />
 
 # AcidSnip
 
