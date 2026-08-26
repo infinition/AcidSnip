@@ -1,4 +1,6 @@
-<img width="302" height="302" alt="image-removebg-preview (15)" src="https://github.com/user-attachments/assets/4e56aeba-8263-47cc-b7d7-5731426546d4" />
+<p align="center">
+  <img src=".github/AcidSnip.png" alt="AcidSnip icon" width="302" height="302" />
+</p>
 
 # AcidSnip
 
